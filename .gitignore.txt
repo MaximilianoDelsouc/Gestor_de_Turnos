@@ -1,0 +1,23 @@
+# Maven build output
+target/
+
+# Compiled files
+*.class
+
+# Logs
+*.log
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+
+# NetBeans
+nbactions.xml
+
+# Other IDEs
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+.vscode/
