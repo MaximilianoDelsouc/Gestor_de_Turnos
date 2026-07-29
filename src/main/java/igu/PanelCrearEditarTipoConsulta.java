@@ -1,6 +1,7 @@
 package igu;
 
 import igu.clases_utilitarias.FabricaElementos;
+import igu.clases_utilitarias.LimiteCaracteresDocumentFilter;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -13,16 +14,17 @@ import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.JTextField;
 import logica.clases.TipoConsulta;
-import igu.interfaces.GuardarCancelarTipoConsulta;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.JOptionPane;
+import igu.interfaces.AccionesTipoConsulta;
+import javax.swing.text.AbstractDocument;
 
 public class PanelCrearEditarTipoConsulta extends JPanel {
 
-    private GuardarCancelarTipoConsulta guardarCancelar;
+    private final AccionesTipoConsulta accionesTipoConsulta;
 
     private JTextField txtNombreTipoConsulta, txtCosto;
     private JComboBox cmbDuracionMinutos;
@@ -33,8 +35,8 @@ public class PanelCrearEditarTipoConsulta extends JPanel {
 
     private TipoConsulta tipoConsultaEditar;
 
-    public PanelCrearEditarTipoConsulta(GuardarCancelarTipoConsulta guardarCancelar) {
-        this.guardarCancelar = guardarCancelar;
+    public PanelCrearEditarTipoConsulta(AccionesTipoConsulta guardarCancelar) {
+        this.accionesTipoConsulta = guardarCancelar;
 
         iniciarComponentes();
         iniciarEventosComponentes();
@@ -69,8 +71,10 @@ public class PanelCrearEditarTipoConsulta extends JPanel {
             textField.setEditable(true);
         }
 
+        ((AbstractDocument) txtNombreTipoConsulta.getDocument()).setDocumentFilter(new LimiteCaracteresDocumentFilter(TipoConsulta.LONGITUD_MAXIMA_NOMBRE_CONSULTA));
+
         cmbDuracionMinutos = new JComboBox();
-        for (int i = 10; i <= 480; i += 5) {
+        for (int i = 10; i <= TipoConsulta.DURACION_MAXIMA_MINUTOS; i += 5) {
             cmbDuracionMinutos.addItem(i);
         }
         cmbDuracionMinutos.setPreferredSize(new Dimension(480, 30));
@@ -161,43 +165,44 @@ public class PanelCrearEditarTipoConsulta extends JPanel {
     }
 
     private void botonGuardar() {
-
-        String nombreTipoConsulta = txtNombreTipoConsulta.getText().trim();
-        String duracion = String.valueOf(cmbDuracionMinutos.getSelectedItem());
-        String costoTexto = txtCosto.getText().trim();
-
-        if (nombreTipoConsulta.isEmpty() || (costoTexto.isEmpty() || !costoTexto.matches("\\d+"))) {
-            JOptionPane.showMessageDialog(null, "Verifique los campos Nombre del tipo de consulta y Costo. Estos no pueden estar vacíos y Costo solo permite números enteros positivos.",
-                    "Campos vacíos", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        int costoValorEntero = 0;
+        String nombreTipoConsulta = txtNombreTipoConsulta.getText().strip();
+        int minutosDuracion = Integer.parseInt(String.valueOf(cmbDuracionMinutos.getSelectedItem()));
+        int costo;
         try {
-            costoValorEntero = Integer.valueOf(costoTexto);
+            costo = Integer.parseInt(txtCosto.getText().strip());
         } catch (NumberFormatException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(null, "Verifique que el campo Costo sea solo números enteros.", "Campo Costo inválido", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "El costo del tipo de consulta debe ser solo número enteros.", "Campo Costo inválido", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if (costoValorEntero < 0) {
-            JOptionPane.showMessageDialog(null, "Verifique que el campo Costo sea igual o mayor a 0.", "Campo Costo inválido", JOptionPane.ERROR_MESSAGE);
-            return;
+        boolean aprobado = verificarCamposIngresados(nombreTipoConsulta, costo);
+        if (aprobado) {
+
+            //CREAR NUEVO TIPO DE CONSULTA
+            if (tipoConsultaEditar == null) {
+                accionesTipoConsulta.guardarNuevoTipoConsulta(nombreTipoConsulta, minutosDuracion, costo);
+
+                //EDITAR TIPO DE CONSULTA
+            } else {
+                accionesTipoConsulta.guardarTipoConsultaEditado(tipoConsultaEditar, nombreTipoConsulta, minutosDuracion, costo);
+            }
+        }
+    }
+
+    private static boolean verificarCamposIngresados(String nombreTipoConsulta, int costo) {
+        if (nombreTipoConsulta.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Debe ingresar un nombre para el tipo de consulta.",
+                    "Campo vacío", JOptionPane.ERROR_MESSAGE);
+            return false;
         }
 
-        //CREAR NUEVO TIPO DE CONSULTA
-        if (tipoConsultaEditar == null) {
-            TipoConsulta tipoConsulta = new TipoConsulta(nombreTipoConsulta, Integer.valueOf(duracion), costoValorEntero);
-            guardarCancelar.eventoGuardarTipoConsultaNueva(tipoConsulta);
-
-            //EDITAR TIPO DE CONSULTA
-        } else {
-            tipoConsultaEditar.setNombreConsulta(nombreTipoConsulta);
-            tipoConsultaEditar.setDuracionMinutos(Integer.valueOf(duracion));
-            tipoConsultaEditar.setCosto(costoValorEntero);
-            guardarCancelar.eventoGuardarTipoConsultaEditada(tipoConsultaEditar);
+        if (costo < 0) {
+            JOptionPane.showMessageDialog(null, "El costo del tipo de consulta no puede ser menor a 0 (cero).",
+                    "Campo Costo inválido", JOptionPane.ERROR_MESSAGE);
+            return false;
         }
+
+        return true;
     }
 
     private void botonLimpiarTodo() {
@@ -211,7 +216,7 @@ public class PanelCrearEditarTipoConsulta extends JPanel {
     }
 
     private void botonCancelar() {
-        guardarCancelar.eventocancelar();
+        accionesTipoConsulta.eventocancelar();
     }
 
     private void cargarCampos(TipoConsulta tipoConsulta) {

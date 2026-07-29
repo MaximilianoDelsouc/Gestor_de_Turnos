@@ -1,378 +1,248 @@
 package logica;
 
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Optional;
 import logica.clases.Turno;
 import logica.clases.Paciente;
 import logica.clases.TipoConsulta;
 import logica.clases.Turno.Estado;
-import logica.exceptions.CampoInvalido;
-import logica.exceptions.EstadoInvalido;
-import logica.exceptions.TurnoReprogramarPasado;
+import logica.exceptions.HorarioInvalido;
+import logica.exceptions.TipoConsultaInvalido;
 import persistencia.exceptions.ProblemaPersistencia;
 
 public class LogicaTurno {
-
-    private ControladoraLogica controladoraLogica;
-
+    
+    private final ControladoraLogica controladoraLogica;
+    
     public LogicaTurno(ControladoraLogica controladoraLogica) {
         this.controladoraLogica = controladoraLogica;
     }
 
-    public List<Turno> traerTodos() {
-        return controladoraLogica.traerTurnos();
-    }
-
-    public List<Turno> traerTurnosHoy() {
-        List<Turno> listaTurnos = controladoraLogica.traerTurnos();
-
-        //Mantener los turnos de hoy y que estén confirmados, pendientes o atendidos
-        Calendar calendarioHoy = Calendar.getInstance();
-        calendarioHoy.setTime(new Date());
-        Calendar calendarioFechaTurno = Calendar.getInstance();
-
-        Iterator<Turno> iteradorListaTurnos = listaTurnos.iterator();
-        while (iteradorListaTurnos.hasNext()) {
-            Turno proximoTurno = iteradorListaTurnos.next();
-            Estado estadoTurno = proximoTurno.getEstado();
-            calendarioFechaTurno.setTime(proximoTurno.getHoraInicio());
-            if (!(calendarioFechaTurno.get(Calendar.YEAR) == calendarioHoy.get(Calendar.YEAR)
-                    && calendarioFechaTurno.get(Calendar.MONTH) == calendarioHoy.get(Calendar.MONTH)
-                    && calendarioFechaTurno.get(Calendar.DATE) == calendarioHoy.get(Calendar.DATE))
-                    || !(estadoTurno == Turno.Estado.CONFIRMADO || estadoTurno == Turno.Estado.PENDIENTE)) {
-                iteradorListaTurnos.remove();
-            }
+    /*
+    CREATE
+     */
+    public void crearNuevo(Date fechaHoraInicial, Date fechaHoraFinal, Paciente paciente, TipoConsulta tipoConsulta) {
+        if (fechaHoraFinal.before(new Date())) {
+            throw new HorarioInvalido("La fecha y hora inicial del nuevo turno no puede ser anterior a la fecha y hora actual.");
         }
-
-        //Ordenar por hora de incio de forma ascendente
-        Collections.sort(listaTurnos, new Comparator<Turno>() {
-            @Override
-            public int compare(Turno turno1, Turno turno2) {
-                return turno1.getHoraInicio().compareTo(turno2.getHoraInicio());
-            }
+        
+        if (!tipoConsulta.isHabilitado()) {
+            throw new TipoConsultaInvalido("El tipo de consulta del nuevo turno no debe estar deshabilitado.");
         }
-        );
-
-        return listaTurnos;
-    }
-
-    //Recibe la lista de turnos ya ordenada
-    public Paciente traerProximoPaciente(List<Turno> turnosHoy) {
-        //Eliminar turnos que no estén confirmados y que ya han pasado hasta el momento
-        Date horaActual = new Date();
-
-        Iterator<Turno> iteradorTurnosHoy = turnosHoy.iterator();
-
-        while (iteradorTurnosHoy.hasNext()) {
-            Turno proximoTurno = iteradorTurnosHoy.next();
-
-            if ((proximoTurno.getEstado() != Turno.Estado.CONFIRMADO) && (proximoTurno.getHoraFinal().before(horaActual))) {
-                iteradorTurnosHoy.remove();
-            }
-        }
-
-        //Buscar al paciente del próximo turno
-        Paciente proximoPaciente;
-
-        if (!turnosHoy.isEmpty()) {
-            proximoPaciente = turnosHoy.get(0).getPaciente();
-        } else {
-            proximoPaciente = null;
-        }
-
-        return proximoPaciente; //Esto puede devolver null, aclararlo en la IGU
-    }
-
-    public void crearNuevo(Turno turno) {
-        try {
-            verificarCampos(turno);
-        } catch (CampoInvalido e) {
-            e.printStackTrace();
-            throw e;
-        }
-        controladoraLogica.crearTurno(turno);
-    }
-
-    public List<Turno> buscarPorFecha(Date fechaBuscada) {
-        List<Turno> listaTurnos = controladoraLogica.traerTurnos();
-
-        Iterator<Turno> iteradorListaTurnos = listaTurnos.iterator();
-        while (iteradorListaTurnos.hasNext()) {
-            Turno proximoTurno = iteradorListaTurnos.next();
-            short anio = (short) proximoTurno.getHoraInicio().getYear();
-            short mes = (short) proximoTurno.getHoraInicio().getMonth();
-            short dia = (short) proximoTurno.getHoraInicio().getDate();
-            if (!(anio == fechaBuscada.getYear() && mes == fechaBuscada.getMonth() && dia == fechaBuscada.getDate())) {
-                iteradorListaTurnos.remove();
-            }
-        }
-
-        return listaTurnos;
-    }
-
-    public List<Turno> filtrarPorEstado(Estado estadoBuscado) {
-        List<Turno> listaTurnos = controladoraLogica.traerTurnos();
-
-        Iterator<Turno> iteradorListaTurnos = listaTurnos.iterator();
-        while (iteradorListaTurnos.hasNext()) {
-            Turno proximoTurno = iteradorListaTurnos.next();
-            if (proximoTurno.getEstado() != estadoBuscado) {
-                iteradorListaTurnos.remove();
-            }
-        }
-
-        return listaTurnos;
-    }
-
-    public List<Turno> filtrarPorFechaEstado(Date fechaBuscada, Estado estadoBuscado) {
-        List<Turno> listaTurnos = controladoraLogica.traerTurnos();
-
-        Iterator<Turno> iteradorListaTurnos = listaTurnos.iterator();
-        while (iteradorListaTurnos.hasNext()) {
-            Turno proximoTurno = iteradorListaTurnos.next();
-            short anio = (short) proximoTurno.getHoraInicio().getYear();
-            short mes = (short) proximoTurno.getHoraInicio().getMonth();
-            short dia = (short) proximoTurno.getHoraInicio().getDate();
-            if (!(anio == fechaBuscada.getYear() && mes == fechaBuscada.getMonth() && dia == fechaBuscada.getDate() && proximoTurno.getEstado() == estadoBuscado)) {
-                iteradorListaTurnos.remove();
-            }
-        }
-
-        return listaTurnos;
-    }
-
-    public List<Turno> ordenarPorFechaCercanaLejana(List<Turno> listaTurnos) {
-        //Ordenar por hora de incio de forma ascendente
-        Collections.sort(listaTurnos, new Comparator<Turno>() {
-            @Override
-            public int compare(Turno turno1, Turno turno2) {
-                return turno1.getHoraInicio().compareTo(turno2.getHoraInicio());
-            }
-        }
-        );
-
-        return listaTurnos;
-    }
-
-    public void confirmarTurno(long idTurno) {
-        Turno turno = controladoraLogica.traerTurno(idTurno);
-
-        if (!turno.puedeConfirmar()) {
-            throw new EstadoInvalido("El turno no puede cambiar su estado a Confirmado.");
-        }
-
-        turno.setEstado(Estado.CONFIRMADO);
-
-        try {
-            controladoraLogica.editarTurno(turno);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            throw new ProblemaPersistencia("Ha ocurrido un problema al intentar confirmar un turno.");
-        }
-    }
-
-    public void atenderTurno(long idTurno) {
-        Turno turno = controladoraLogica.traerTurno(idTurno);
-
-        if (!turno.puedeAtender()) {
-            throw new EstadoInvalido("El turno no puede cambiar su estado a Atendido.");
-        }
-
-        turno.setEstado(Estado.ATENDIDO);
-
-        try {
-            controladoraLogica.editarTurno(turno);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            throw new ProblemaPersistencia("Ha ocurrido un problema al intentar atender un turno.");
-        }
-    }
-
-    public void reprogramarTurno(Turno turnoReprogramado, Turno nuevoTurno) {
-        if (turnoReprogramado.getHoraInicio().before(new Date())) {
-            throw new TurnoReprogramarPasado("No se puede repogramar turnos cuya fecha ya ha pasado.");
-        }
-
-        try {
-            verificarCampos(nuevoTurno);
-        } catch (CampoInvalido e) {
-            e.printStackTrace();
-            throw e;
-        }
-
-        turnoReprogramado.setReprogramado(true);
-        turnoReprogramado.setEstado(Estado.CANCELADO);
-        try {
-            controladoraLogica.editarTurno(turnoReprogramado); //¿Dará problemas si lo mando a BD antes de usar sus datos?
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            throw new ProblemaPersistencia("Ha ocurrido un problema al intentar cancelar un turno para reprogramarlo.");
-        }
-
+        
+        Turno nuevoTurno = new Turno(fechaHoraInicial, fechaHoraFinal, paciente, tipoConsulta);
         controladoraLogica.crearTurno(nuevoTurno);
     }
 
-    public void cancelarTurno(long idTurno) {
-        Turno turno = controladoraLogica.traerTurno(idTurno);
-
-        if (!turno.puedeCancelar()) {
-            throw new EstadoInvalido("El turno no puede cambiar su estado a Cancelado.");
-        }
-
-        turno.setEstado(Estado.CANCELADO);
-
-        try {
-            controladoraLogica.editarTurno(turno);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            throw new ProblemaPersistencia("Ha ocurrido un problema al intentar cancelar un turno.");
-        }
+    /*
+    READ
+     */
+    public List<Turno> traerTodos() {
+        return controladoraLogica.traerTurnos();
+    }
+    
+    public List<Turno> buscarPorFecha(Date fechaBuscada) {
+        // Se reutiliza el Calendar para evitar crear uno por iteración
+        // Este stream debe permanecer secuencial.
+        Calendar calendarioFechaBuscada = Calendar.getInstance();
+        calendarioFechaBuscada.setTime(fechaBuscada);
+        int anioBuscado = calendarioFechaBuscada.get(Calendar.YEAR); // effectively final
+        int mesBuscado = calendarioFechaBuscada.get(Calendar.MONTH);
+        int diaBuscado = calendarioFechaBuscada.get(Calendar.DAY_OF_MONTH);
+        
+        Calendar calendarioFechaTurno = Calendar.getInstance();
+        
+        return controladoraLogica.traerTurnos().stream()
+                .filter(turno -> {
+                    calendarioFechaTurno.setTime(turno.getFechaHoraInicial()); // side effect
+                    return (calendarioFechaTurno.get(Calendar.YEAR) == anioBuscado
+                            && calendarioFechaTurno.get(Calendar.MONTH) == mesBuscado
+                            && calendarioFechaTurno.get(Calendar.DAY_OF_MONTH) == diaBuscado);
+                })
+                .toList();
+    }
+    
+    public List<Turno> ordenarPorFechaAscendente(List<Turno> listaTurnos) {
+        return listaTurnos.stream()
+                .sorted(Comparator.comparing(Turno::getFechaHoraInicial))
+                .toList();
     }
 
+    //Recibe la lista de turnos ya ordenada y filtrada con los turnos pendientes
+    public Optional<Paciente> traerProximoPaciente(List<Turno> turnosHoy) {
+        Date horaActual = new Date();
+        
+        return turnosHoy.stream()
+                .filter(turno -> turno.getFechaHoraFinal().after(horaActual))
+                .filter(turno -> turno.getPaciente() != null)
+                .map(Turno::getPaciente)
+                .findFirst();
+    }
+    
+    public List<Turno> filtrarPorEstado(Estado estadoBuscado) {
+        return filtrarListaPorEstado(controladoraLogica.traerTurnos(), estadoBuscado);
+    }
+    
+    public List<Turno> filtrarPorFechaEstado(Date fechaBuscada, Turno.Estado estadoBuscado) {
+        return filtrarListaPorEstado(buscarPorFecha(fechaBuscada), estadoBuscado);
+    }
+    
+    private List<Turno> filtrarListaPorEstado(List<Turno> listaTurnos, Turno.Estado estadoBuscado) {
+        return listaTurnos.stream()
+                .filter(turno -> turno.getEstado() == estadoBuscado)
+                .toList();
+    }
+    
+    public List<Turno> traerTurnosHoyPendientes() {
+        List<Turno> turnosHoy = buscarPorFecha(new Date());
+        turnosHoy = ordenarPorFechaAscendente(turnosHoy);
+        return filtrarListaPorEstado(turnosHoy, Estado.PENDIENTE);
+    }
+    
+    public List<Turno> traerTurnosAyerPendientes() {
+        Calendar calendarioAyer = Calendar.getInstance();
+        calendarioAyer.setTime(new Date());
+        calendarioAyer.add(Calendar.DAY_OF_MONTH, -1);
+        
+        List<Turno> turnosAyer = buscarPorFecha(calendarioAyer.getTime());
+        return filtrarListaPorEstado(turnosAyer, Estado.PENDIENTE);
+    }
+    
     public Map<Date, Date> traerHorariosDisponibles(Date diaSeleccionado, TipoConsulta tipoConsultaSeleccionada, Turno turnoIgnorar) {
-
-        //Guardar los turnos del día seleccionado
-        Calendar calendarioDiaSeleccionado = Calendar.getInstance();
-        calendarioDiaSeleccionado.setTime(diaSeleccionado);
-
-        List<Turno> listaTurnos = controladoraLogica.traerTurnos();
-        Iterator<Turno> iteradorListaTurnos = listaTurnos.iterator();
-
-        while (iteradorListaTurnos.hasNext()) {
-            Turno proximoTurno = iteradorListaTurnos.next();
-            Calendar horaInicioProximoTurno = Calendar.getInstance();
-            horaInicioProximoTurno.setTime(proximoTurno.getHoraInicio());
-
-            if (!(horaInicioProximoTurno.get(Calendar.YEAR) == calendarioDiaSeleccionado.get(Calendar.YEAR)
-                    && horaInicioProximoTurno.get(Calendar.MONTH) == calendarioDiaSeleccionado.get(Calendar.MONTH)
-                    && horaInicioProximoTurno.get(Calendar.DATE) == calendarioDiaSeleccionado.get(Calendar.DATE)
-                    && proximoTurno.getEstado() != Estado.CANCELADO)) {
-                iteradorListaTurnos.remove();
-            }
-        }
-
+        
+        List<Turno> turnosDiaSeleccionado = buscarPorFecha(diaSeleccionado).stream()
+                .filter(
+                        turno -> (turno.getEstado() == Turno.Estado.PENDIENTE)
+                        && (turnoIgnorar == null || !turno.equals(turnoIgnorar)) // En caso de que se esté reprogramando un turno, no se debería considerar los horarios de este
+                )
+                .toList();
+        
         Map<Date, Date> horariosDisponibles = new LinkedHashMap();
-
+        
         Calendar ultimaHoraJornada = Calendar.getInstance();
         ultimaHoraJornada.setTime(diaSeleccionado);
         ultimaHoraJornada.set(Calendar.HOUR_OF_DAY, 17); //Hora final de la jornada
         ultimaHoraJornada.set(Calendar.MINUTE, 0);
         ultimaHoraJornada.set(Calendar.SECOND, 0);
         ultimaHoraJornada.set(Calendar.MILLISECOND, 0);
+        
+        Calendar posibleHoraInicialNuevoTurno = Calendar.getInstance();
+        posibleHoraInicialNuevoTurno.setTime(diaSeleccionado);
+        posibleHoraInicialNuevoTurno.set(Calendar.HOUR_OF_DAY, 8); //Primera hora de la jornada 
+        posibleHoraInicialNuevoTurno.set(Calendar.MINUTE, 0);
+        posibleHoraInicialNuevoTurno.set(Calendar.SECOND, 0);
+        posibleHoraInicialNuevoTurno.set(Calendar.MILLISECOND, 0);
+        
+        Calendar posibleHoraFinalNuevoTurno = Calendar.getInstance();
+        posibleHoraFinalNuevoTurno.setTime(diaSeleccionado);
+        posibleHoraFinalNuevoTurno.set(Calendar.HOUR_OF_DAY, 8);
+        posibleHoraFinalNuevoTurno.add(Calendar.MINUTE, tipoConsultaSeleccionada.getDuracionMinutos()); //Sumar duración de la consulta
+        posibleHoraFinalNuevoTurno.set(Calendar.SECOND, 0);
+        posibleHoraFinalNuevoTurno.set(Calendar.MILLISECOND, 0);
 
-        Calendar horaInicialNuevoTurno = Calendar.getInstance();
-        horaInicialNuevoTurno.setTime(diaSeleccionado);
-        horaInicialNuevoTurno.set(Calendar.HOUR_OF_DAY, 8); //Primera hora de la jornada 
-        horaInicialNuevoTurno.set(Calendar.MINUTE, 0);
-        horaInicialNuevoTurno.set(Calendar.SECOND, 0);
-        horaInicialNuevoTurno.set(Calendar.MILLISECOND, 0);
-
-        Calendar horaFinalNuevoTurno = Calendar.getInstance();
-        horaFinalNuevoTurno.setTime(diaSeleccionado);
-        horaFinalNuevoTurno.set(Calendar.HOUR_OF_DAY, 8);
-        horaFinalNuevoTurno.add(Calendar.MINUTE, tipoConsultaSeleccionada.getDuracionMinutos()); //Sumar duración de la consulta
-        horaFinalNuevoTurno.set(Calendar.SECOND, 0);
-        horaFinalNuevoTurno.set(Calendar.MILLISECOND, 0);
-
-        //Los horarios disponibles se manejaran en intervalos de 5 minutos para no hacerlo tan verboso en la interfaz
+        //Los horarios disponibles se manejaran en intervalos de 5 minutos
         int intervaloMinutos = 5;
 
-        //Esto es para guardar la hora de inicio y finalización de los turnos en la fecha seleccionada que son Date
-        Calendar turnoHoraInicio = Calendar.getInstance();
-        Calendar turnoHoraFinal = Calendar.getInstance();
+        //Esto es para guardar la hora de inicio y finalización de los turnos ya registrados en la fecha seleccionada que son Date
+        Calendar horaInicialTurno = Calendar.getInstance();
+        Calendar horaFinalTurno = Calendar.getInstance();
+
+        //Esto es para que la hora de inicio del nuevo turno no sea anterior a la hora actual
+        Calendar horaActual = Calendar.getInstance();
+        horaActual.setTime(new Date());
+        horaActual.set(Calendar.MILLISECOND, 0);
 
         //Los turnos no deben sobrepasar el horario de salida
-        while (horaFinalNuevoTurno.before(ultimaHoraJornada) || horaFinalNuevoTurno.equals(ultimaHoraJornada)) {
+        while (posibleHoraFinalNuevoTurno.before(ultimaHoraJornada) || posibleHoraFinalNuevoTurno.equals(ultimaHoraJornada)) {
 
-            //Verificar que tanto la hora de inicio y finalización no se encuentren entre los intervalos de duración de los turnos del día seleccioando
+            //Verificar que la hora de inicio y de finalización no se encuentren entre los intervalos de duración de los turnos ya registrados en el día seleccionado
+            //Verificar que la hora de inicio del nuevo turno no sea anterior a la hora actual
             boolean horarioDisponible = true;
-
-            for (Turno turno : listaTurnos) {
-
-                if (turnoIgnorar != null && turnoIgnorar.equals(turno)) {
-                    continue; //Salta esta iteración
-                }
-
-                turnoHoraInicio.setTime(turno.getHoraInicio());
-                turnoHoraFinal.setTime(turno.getHoraFinal());
-                turnoHoraInicio.set(Calendar.MILLISECOND, 0);
-                turnoHoraFinal.set(Calendar.MILLISECOND, 0);
-
-                if (horaInicialNuevoTurno.before(turnoHoraFinal) && horaFinalNuevoTurno.after(turnoHoraInicio)) {
+            
+            for (Turno turno : turnosDiaSeleccionado) {
+                horaInicialTurno.setTime(turno.getFechaHoraInicial());
+                horaFinalTurno.setTime(turno.getFechaHoraFinal());
+                horaInicialTurno.set(Calendar.MILLISECOND, 0);
+                horaFinalTurno.set(Calendar.MILLISECOND, 0);
+                
+                if (posibleHoraInicialNuevoTurno.before(horaFinalTurno) && posibleHoraFinalNuevoTurno.after(horaInicialTurno)) {
                     horarioDisponible = false;
                     break;
                 }
             }
-
+            
+            if (posibleHoraInicialNuevoTurno.before(horaActual)) {
+                horarioDisponible = false;
+            }
+            
             if (horarioDisponible) {
-                horariosDisponibles.put(horaInicialNuevoTurno.getTime(), horaFinalNuevoTurno.getTime());
+                horariosDisponibles.put(posibleHoraInicialNuevoTurno.getTime(), posibleHoraFinalNuevoTurno.getTime());
             }
 
             //Se muestran intervalos de 5 en 5
-            horaInicialNuevoTurno.add(Calendar.MINUTE, intervaloMinutos);
-            horaFinalNuevoTurno.add(Calendar.MINUTE, intervaloMinutos);
+            posibleHoraInicialNuevoTurno.add(Calendar.MINUTE, intervaloMinutos);
+            posibleHoraFinalNuevoTurno.add(Calendar.MINUTE, intervaloMinutos);
         }
-
+        
         return horariosDisponibles;
     }
-    
-    public List<Turno> traerTurnosRevision() {
-        List<Turno> listaTurnos = controladoraLogica.traerTurnos();
 
-        Date fechaHoy = new Date();
-        Iterator<Turno> iteradorListaTurnos = listaTurnos.iterator();
-        while (iteradorListaTurnos.hasNext()) {
-            Turno proximoTurno = iteradorListaTurnos.next();
-
-            if (!(proximoTurno.getHoraInicio().before(fechaHoy) && (proximoTurno.getEstado() == Turno.Estado.CONFIRMADO || proximoTurno.getEstado() == Turno.Estado.PENDIENTE))) {
-                iteradorListaTurnos.remove();
-            }
-        }
-
-        return listaTurnos;
-    }
-
-    public void cambiarEstadoTurnoRevisado(long idTurnoRevisado) {
-        Turno turno = controladoraLogica.traerTurno(idTurnoRevisado);
-
-        if (turno.getEstado() == Estado.CONFIRMADO) {
-            turno.setEstado(Estado.AUSENTADO);
-        }
-
-        if (turno.getEstado() == Estado.PENDIENTE) {
-            turno.setEstado(Estado.CANCELADO);
-        }
-
+    /*
+    UPDATE
+     */
+    public void atenderTurno(Turno turno) {
+        turno.setEstado(Estado.ATENDIDO);
+        
         try {
             controladoraLogica.editarTurno(turno);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            throw new ProblemaPersistencia("Ha ocurrido un error al intentar cambiar el estado del turno revisado..");
+        } catch (Exception e) {
+            throw new ProblemaPersistencia();
         }
     }
-
-    private void verificarCampos(Turno turno) {
-        if (turno.getPaciente() == null) {
-            throw new CampoInvalido("No se ha seleccionado un paciente para el nuevo turno.");
-        }
-        if (turno.getTipoConsulta() == null) {
-            throw new CampoInvalido("No se ha seleccionado un tipo de consulta para el nuevo turno.");
+    
+    public void reprogramarTurno(Turno turnoReprogramar, Date fechaHoraInicial, Date fechaHoraFinal) {
+        if (turnoReprogramar.getFechaHoraFinal().before(new Date())) {
+            throw new HorarioInvalido("Para reprogramar un turno su fecha y hora final no debe ser anterior a la fecha y hora actual.");
         }
 
-        Date fechaHoy = new Date();
-        if (turno.getHoraInicio() == null || turno.getHoraInicio().before(fechaHoy)) {
-            throw new CampoInvalido("El horario inicial ingresado para el nuevo turno no es válido.");
+        // Importante el orden de este proceso. Ya que no se pueden marcar como 'reprogramado' cursos que no hayan sido cancelados previamente
+        turnoReprogramar.setEstado(Estado.CANCELADO);
+        turnoReprogramar.setReprogramado(true);
+        
+        Turno nuevoTurno = new Turno(fechaHoraInicial, fechaHoraFinal, turnoReprogramar.getPaciente(), turnoReprogramar.getTipoConsulta());
+
+        // Esto puede generar problemas de inconsistencia de datos en la BD. Se solucionará en el futuro
+        try {
+            controladoraLogica.editarTurno(turnoReprogramar);
+        } catch (Exception e) {
+            throw new ProblemaPersistencia("Ha ocurrido un problema al intentar cancelar un turno para reprogramarlo.");
         }
-        if (turno.getHoraFinal() == null || turno.getHoraFinal().before(fechaHoy) || turno.getHoraFinal().before(turno.getHoraInicio())) {
-            throw new CampoInvalido("El horario final ingresado para el nuevo turno no es válido.");
+        
+        controladoraLogica.crearTurno(nuevoTurno);
+    }
+    
+    public void cancelarTurno(Turno turno) {
+        turno.setEstado(Estado.CANCELADO);
+        
+        try {
+            controladoraLogica.editarTurno(turno);
+        } catch (Exception e) {
+            throw new ProblemaPersistencia();
+        }
+    }
+    
+    public void ausentarTurno(Turno turno) {
+        turno.setEstado(Estado.AUSENTADO);
+        
+        try {
+            controladoraLogica.editarTurno(turno);
+        } catch (Exception e) {
+            throw new ProblemaPersistencia();
         }
     }
 }

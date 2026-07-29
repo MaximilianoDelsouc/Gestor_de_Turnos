@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
-import javax.persistence.Persistence;
 import logica.clases.Paciente;
 import persistencia.exceptions.NonexistentEntityException;
 
@@ -20,11 +19,6 @@ public class PacienteJpaController implements Serializable {
         this.emf = emf;
     }
     private EntityManagerFactory emf = null;
-
-    //Código agregado
-    public PacienteJpaController() {
-        emf = Persistence.createEntityManagerFactory("GestorDeTurnos_UP");
-    }
 
     public EntityManager getEntityManager() {
         return emf.createEntityManager();
@@ -47,7 +41,7 @@ public class PacienteJpaController implements Serializable {
             em.persist(paciente);
             for (Turno turnosTurno : paciente.getTurnos()) {
                 Paciente oldPacienteOfTurnosTurno = turnosTurno.getPaciente();
-                turnosTurno.setPaciente(paciente);
+                //turnosTurno.setPaciente(paciente);
                 turnosTurno = em.merge(turnosTurno);
                 if (oldPacienteOfTurnosTurno != null) {
                     oldPacienteOfTurnosTurno.getTurnos().remove(turnosTurno);
@@ -80,14 +74,14 @@ public class PacienteJpaController implements Serializable {
             paciente = em.merge(paciente);
             for (Turno turnosOldTurno : turnosOld) {
                 if (!turnosNew.contains(turnosOldTurno)) {
-                    turnosOldTurno.setPaciente(null);
+                    //turnosOldTurno.setPaciente(null);
                     turnosOldTurno = em.merge(turnosOldTurno);
                 }
             }
             for (Turno turnosNewTurno : turnosNew) {
                 if (!turnosOld.contains(turnosNewTurno)) {
                     Paciente oldPacienteOfTurnosNewTurno = turnosNewTurno.getPaciente();
-                    turnosNewTurno.setPaciente(paciente);
+                    //turnosNewTurno.setPaciente(paciente);
                     turnosNewTurno = em.merge(turnosNewTurno);
                     if (oldPacienteOfTurnosNewTurno != null && !oldPacienteOfTurnosNewTurno.equals(paciente)) {
                         oldPacienteOfTurnosNewTurno.getTurnos().remove(turnosNewTurno);

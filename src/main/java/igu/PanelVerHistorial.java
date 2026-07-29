@@ -34,9 +34,9 @@ import logica.clases.Turno;
 
 public class PanelVerHistorial extends JPanel {
 
-    private LogicaPaciente logicaPaciente;
+    private final LogicaPaciente logicaPaciente;
 
-    private VolverVerHistorial volver;
+    private final VolverVerHistorial volver;
 
     private Paciente paciente;
     private ModeloTablaHistorialTurnos modeloTabla;
@@ -108,7 +108,7 @@ public class PanelVerHistorial extends JPanel {
 
         JPanel panelInformacionPaciente = FabricaElementos.crearPanelFormularioConEncabezado(labelsCampos, componentesTexto, lblEncabezadoInformacionPaciente);
 
-        //Panel Historial de turnos
+        ////Panel Historial de turnos////
         JLabel lblEncabezadoHistorialTurnos = new JLabel("Historial de Turnos");
         lblEncabezadoHistorialTurnos.setFont(fuenteEncabezados);
         lblEncabezadoHistorialTurnos.setForeground(Color.BLACK);
@@ -118,6 +118,7 @@ public class PanelVerHistorial extends JPanel {
         JPanel panelTablaFiltro = new JPanel();
         panelTablaFiltro.setLayout(new BorderLayout());
 
+        // Panel de filtros
         JPanel panelFiltro = new JPanel();
         panelFiltro.setLayout(new GridBagLayout());
 
@@ -127,6 +128,9 @@ public class PanelVerHistorial extends JPanel {
         rbAtendido = new JRadioButton("Atendido");
         rbCanceladoAusentado = new JRadioButton("Cancelado o Ausentado");
         btnTodos = new JButton("Todos");
+
+        rbAtendido.setBackground(Color.WHITE);
+        rbCanceladoAusentado.setBackground(Color.WHITE);
 
         rbAtendido.setFont(fuenteFiltros);
         rbAtendido.setFocusPainted(false);
@@ -165,6 +169,9 @@ public class PanelVerHistorial extends JPanel {
 
         panelTablaFiltro.add(panelFiltro, BorderLayout.NORTH);
 
+        panelFiltro.setBackground(Color.WHITE);
+
+        //Tabla de turnos        
         modeloTabla = new ModeloTablaHistorialTurnos();
         JTable tablaHistorialTurnos = FabricaElementos.crearTabla(modeloTabla);
         JScrollPane scrollTabla = new JScrollPane(tablaHistorialTurnos);
@@ -232,19 +239,19 @@ public class PanelVerHistorial extends JPanel {
     }
 
     private void botonFiltrarPorEstadoAtendido() {
-        modeloTabla.actualizar(logicaPaciente.traerHistorialTurnosAtendidos(paciente.getIdPaciente()));
+        modeloTabla.actualizar(logicaPaciente.traerHistorialTurnosAtendidosPaciente(paciente.getIdPaciente()));
     }
 
     private void botonFiltrarPorEstadoCanceladoAusentado() {
-        modeloTabla.actualizar(logicaPaciente.traerHistorialTurnosCanceladosAusentados(paciente.getIdPaciente()));
+        modeloTabla.actualizar(logicaPaciente.traerHistorialTurnosCanceladosAusentadosPaciente(paciente.getIdPaciente()));
     }
 
     private void traerTodoHistorial() {
-        modeloTabla.actualizar(logicaPaciente.traerHistorialCompleto(paciente.getIdPaciente()));
+        modeloTabla.actualizar(logicaPaciente.traerHistorialCompletoPaciente(paciente.getIdPaciente()));
     }
 
     private void botonVolver() {
-        volver.eventoVolver();
+        volver.volver();
     }
 
     private void agregarEfectoResaltado(JButton boton) {
@@ -268,7 +275,7 @@ public class PanelVerHistorial extends JPanel {
         txtCorreoElectronico.setText(paciente.getCorreoElectronico());
         txtObservacion.setText(paciente.getObservacion());
 
-        modeloTabla.actualizar(logicaPaciente.traerHistorialCompleto(paciente.getIdPaciente()));
+        modeloTabla.actualizar(logicaPaciente.traerHistorialCompletoPaciente(paciente.getIdPaciente()));
 
         this.paciente = paciente;
     }
@@ -303,22 +310,23 @@ class ModeloTablaHistorialTurnos extends AbstractTableModel {
     public Object getValueAt(int rowIndex, int columnIndex) {
         Turno turno = historialTurnos.get(rowIndex);
 
-        switch (columnIndex) {
-            case 0:
-                return turno.getTipoConsulta().getNombreConsulta();
+        return switch (columnIndex) {
 
-            case 1:
-                return turno.getHoraInicio();
+            case 0 ->
+                turno.getTipoConsulta().getNombreConsulta();
 
-            case 2:
-                return turno.getEstado();
+            case 1 ->
+                turno.getFechaHoraInicial();
 
-            case 3:
-                return turno.isReprogramado();
+            case 2 ->
+                turno.getEstado();
 
-            default:
-                return null;
-        }
+            case 3 ->
+                turno.isReprogramado();
+
+            default ->
+                null;
+        };
     }
 
     @Override

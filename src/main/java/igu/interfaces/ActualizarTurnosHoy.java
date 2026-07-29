@@ -2,5 +2,5 @@ package igu.interfaces;
 
 public interface ActualizarTurnosHoy {
 
-    public void actualizarTurnosHoy();
+    public void actualizar();
 }

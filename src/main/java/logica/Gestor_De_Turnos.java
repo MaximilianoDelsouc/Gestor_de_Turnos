@@ -2,10 +2,9 @@ package logica;
 
 import igu.VentanaPrincipal;
 
-//Autor: Maximiliano Delsouc
-//GitHub: https://github.com/MaximilianoDelsouc
+// Autor: Maximiliano Delsouc
+// GitHub: https://github.com/MaximilianoDelsouc
 // Proyecto bajo licencia MIT
-
 public class Gestor_De_Turnos {
 
     public static void main(String[] args) {
@@ -19,9 +18,5 @@ public class Gestor_De_Turnos {
         VentanaPrincipal ventanaPrincipal = new VentanaPrincipal(logicaPaciente, logicaTipoConsulta, logicaTurno);
         ventanaPrincipal.setVisible(true);
         ventanaPrincipal.setLocationRelativeTo(null);
-     
-        //Mejoras a implementar:
-        // - Agregar manejo de interfaz por teclado
-        // - Agregar íconos a la interfaz
     }
 }

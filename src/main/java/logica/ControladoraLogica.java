@@ -9,7 +9,7 @@ import persistencia.exceptions.NonexistentEntityException;
 
 public class ControladoraLogica {
 
-    private ControladoraPersistencia controladoraPersistencia = new ControladoraPersistencia();
+    private final ControladoraPersistencia controladoraPersistencia = new ControladoraPersistencia();
 
     //Paciente////////////////////////////////////////////////////////////////////////////////////////////////////
     public void crearPaciente(Paciente paciente) {

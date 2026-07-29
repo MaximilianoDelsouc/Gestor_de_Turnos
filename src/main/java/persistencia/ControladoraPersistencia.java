@@ -1,16 +1,21 @@
 package persistencia;
 
 import java.util.List;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
 import logica.clases.Paciente;
 import logica.clases.TipoConsulta;
 import logica.clases.Turno;
+import persistencia.exceptions.IllegalOrphanException;
 import persistencia.exceptions.NonexistentEntityException;
 
 public class ControladoraPersistencia {
 
-    private PacienteJpaController pacienteJpaController = new PacienteJpaController();
-    private TipoConsultaJpaController tipoConsultaJpaController = new TipoConsultaJpaController();
-    private TurnoJpaController turnoJpaController = new TurnoJpaController();
+    private final EntityManagerFactory entityManagerFactory = Persistence.createEntityManagerFactory("GestorDeTurnos_UP");
+
+    private final PacienteJpaController pacienteJpaController = new PacienteJpaController(entityManagerFactory);
+    private final TipoConsultaJpaController tipoConsultaJpaController = new TipoConsultaJpaController(entityManagerFactory);
+    private final TurnoJpaController turnoJpaController = new TurnoJpaController(entityManagerFactory);
 
     //Paciente////////////////////////////////////////////////////////////////////////////////////////////////////
     public void crearPaciente(Paciente paciente) {
@@ -50,7 +55,7 @@ public class ControladoraPersistencia {
         tipoConsultaJpaController.edit(tipoConsulta);
     }
 
-    public void eliminarTipoConsulta(long idTipoConsulta) throws NonexistentEntityException {
+    public void eliminarTipoConsulta(long idTipoConsulta) throws NonexistentEntityException { // No arroga IllegalOrphanException porque al no ser relación bidireccional JPA no lo detecta
         tipoConsultaJpaController.destroy(idTipoConsulta);
     }
 

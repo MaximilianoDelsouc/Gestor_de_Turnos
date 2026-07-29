@@ -6,7 +6,6 @@ import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Query;
 import javax.persistence.EntityNotFoundException;
-import javax.persistence.Persistence;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import logica.clases.Paciente;
@@ -20,11 +19,6 @@ public class TurnoJpaController implements Serializable {
     }
     private EntityManagerFactory emf = null;
 
-    //Código agregado
-    public TurnoJpaController() {
-        emf = Persistence.createEntityManagerFactory("GestorDeTurnos_UP");
-    }
-
     public EntityManager getEntityManager() {
         return emf.createEntityManager();
     }
@@ -37,7 +31,7 @@ public class TurnoJpaController implements Serializable {
             Paciente paciente = turno.getPaciente();
             if (paciente != null) {
                 paciente = em.getReference(paciente.getClass(), paciente.getIdPaciente());
-                turno.setPaciente(paciente);
+                //turno.setPaciente(paciente);
             }
             em.persist(turno);
             if (paciente != null) {
@@ -62,7 +56,7 @@ public class TurnoJpaController implements Serializable {
             Paciente pacienteNew = turno.getPaciente();
             if (pacienteNew != null) {
                 pacienteNew = em.getReference(pacienteNew.getClass(), pacienteNew.getIdPaciente());
-                turno.setPaciente(pacienteNew);
+                //turno.setPaciente(pacienteNew);
             }
             turno = em.merge(turno);
             if (pacienteOld != null && !pacienteOld.equals(pacienteNew)) {

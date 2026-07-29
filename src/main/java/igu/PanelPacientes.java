@@ -2,7 +2,6 @@ package igu;
 
 import igu.clases_utilitarias.FabricaElementos;
 import igu.interfaces.ActualizarRuta;
-import igu.interfaces.GuardarCancelarPaciente;
 import igu.interfaces.VolverVerHistorial;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -35,14 +34,15 @@ import logica.LogicaPaciente;
 import logica.clases.Paciente;
 import logica.exceptions.CampoInvalido;
 import persistencia.exceptions.ProblemaPersistencia;
+import igu.interfaces.AccionesPaciente;
 
-public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, VolverVerHistorial {
+public class PanelPacientes extends JPanel implements AccionesPaciente, VolverVerHistorial {
 
-    private LogicaPaciente logicaPaciente;
+    private final LogicaPaciente logicaPaciente;
 
-    private ActualizarRuta actualizarRuta;
+    private final ActualizarRuta actualizarRuta;
     private String ruta;
-    private final static String estaRuta = "Pacientes";
+    private static final String ESTA_RUTA = "Pacientes";
 
     private ModeloTablaPaciente modeloTabla;
     private JTable tablaPacientes;
@@ -71,8 +71,9 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
 
         JPanel panelInicioPacientes = new JPanel(new BorderLayout());
         panelInicioPacientes.setBorder(BorderFactory.createEmptyBorder(20, 15, 20, 15));
+        panelInicioPacientes.setBackground(Color.WHITE);
 
-        //Tabla de todos los pacientes
+        //Tabla de pacientes
         modeloTabla = new ModeloTablaPaciente();
         tablaPacientes = FabricaElementos.crearTabla(modeloTabla);
         tablaPacientes.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -82,7 +83,7 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
 
         panelInicioPacientes.add(scrollTabla, BorderLayout.CENTER);
 
-        //Panel de opciones de búsqueda     
+        //Panel de opciones de búsqueda        
         JLabel lblBuscarPorNombre = new JLabel("Buscar por Nombre:");
         JLabel lblBuscarPorApellido = new JLabel("Buscar por Apellido:");
         JLabel lblBuscarPorDni = new JLabel("Buscar por DNI:");
@@ -155,20 +156,22 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
         gridBagConstraintsPanelBusqueda.gridy = 0;
         panelOpcionesBusqueda.add(Box.createHorizontalStrut(145));
 
+        panelOpcionesBusqueda.setBackground(Color.WHITE);
+
         panelInicioPacientes.add(panelOpcionesBusqueda, BorderLayout.NORTH);
 
         //Panel de botones  
         btnAgregarPaciente = new JButton("Agregar");
-        btnModificarDatos = new JButton("Modificar Datos");
-        btnEliminarPaciente = new JButton("Eliminar");
         btnVerHistorial = new JButton("Ver Historial");
+        btnModificarDatos = new JButton("Modificar Datos");
+        btnEliminarPaciente = new JButton("Eliminar Datos");
 
         btnAgregarPaciente.setEnabled(true);
+        btnVerHistorial.setEnabled(false);
         btnModificarDatos.setEnabled(false);
         btnEliminarPaciente.setEnabled(false);
-        btnVerHistorial.setEnabled(false);
 
-        JButton[] botones = {btnAgregarPaciente, btnModificarDatos, btnEliminarPaciente, btnVerHistorial};
+        JButton[] botones = {btnAgregarPaciente, btnVerHistorial, btnModificarDatos, btnEliminarPaciente};
         JPanel panelBotones = FabricaElementos.crearPanelBotonesParaTabla(botones);
 
         panelInicioPacientes.add(panelBotones, BorderLayout.EAST);
@@ -185,7 +188,7 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
         panelContenidoPacientes.add(panelVerHistorial, "verHistorial");
 
         cardLayoutContenidoPacientes.show(panelContenidoPacientes, "inicioPacientes");
-        setRuta(estaRuta);
+        setRuta(ESTA_RUTA);
 
         add(panelContenidoPacientes, BorderLayout.CENTER);
     }
@@ -199,7 +202,7 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
             }
         });
 
-        agregarEfectoResaltar(btnAgregarPaciente);
+        agregarEfectoResaltado(btnAgregarPaciente);
 
         btnModificarDatos.addActionListener(new ActionListener() {
             @Override
@@ -208,7 +211,7 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
             }
         });
 
-        agregarEfectoResaltar(btnModificarDatos);
+        agregarEfectoResaltado(btnModificarDatos);
 
         btnEliminarPaciente.addActionListener(new ActionListener() {
             @Override
@@ -217,7 +220,7 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
             }
         });
 
-        agregarEfectoResaltar(btnEliminarPaciente);
+        agregarEfectoResaltado(btnEliminarPaciente);
 
         btnVerHistorial.addActionListener(new ActionListener() {
             @Override
@@ -226,7 +229,7 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
             }
         });
 
-        agregarEfectoResaltar(btnVerHistorial);
+        agregarEfectoResaltado(btnVerHistorial);
 
         btnBuscar.addActionListener(new ActionListener() {
             @Override
@@ -235,7 +238,7 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
             }
         });
 
-        agregarEfectoResaltar(btnBuscar);
+        agregarEfectoResaltado(btnBuscar);
 
         tablaPacientes.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
             @Override
@@ -245,56 +248,21 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
                 }
             }
         });
+
+        panelContenidoPacientes.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                deseleccionarTabla();
+            }
+
+        });
     }
 
-    private void botonCrear() {
-        panelCrearEditarPaciente.modoCrear();
-        cardLayoutContenidoPacientes.show(panelContenidoPacientes, "crearEditar");
-        registrarRuta(estaRuta + " / " + btnAgregarPaciente.getText());
+    private void deseleccionarTabla() {
+        tablaPacientes.clearSelection();
     }
 
-    private void botonEditar() {
-        Paciente pacienteSeleccionado = modeloTabla.traerPaciente(tablaPacientes.getSelectedRow());
-        panelCrearEditarPaciente.modoEditar(pacienteSeleccionado);
-        cardLayoutContenidoPacientes.show(panelContenidoPacientes, "crearEditar");
-        registrarRuta(estaRuta + " / " + btnModificarDatos.getText());
-    }
-
-    private void botonEliminar() {
-        try {
-            logicaPaciente.eliminar(Integer.valueOf(String.valueOf(modeloTabla.getValueAt(tablaPacientes.getSelectedRow(), 0))));
-        } catch (ProblemaPersistencia e) {
-            JOptionPane.showMessageDialog(null, "Ha ocurrido un problema con la base de datos. Comuníquese con su desarrolador y/o intente más tarde.",
-                    "Problema con base de datos.", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        modeloTabla.actualizar(logicaPaciente.traerTodos());
-        JOptionPane.showMessageDialog(null, "Datos del paciente eliminados exitosamente.", "Datos paciente eliminados", JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    private void botonVerHistorial() {
-        Paciente pacienteSeleccionado = modeloTabla.traerPaciente(tablaPacientes.getSelectedRow());
-        panelVerHistorial.cargarPaciente(pacienteSeleccionado);
-        cardLayoutContenidoPacientes.show(panelContenidoPacientes, "verHistorial");
-        registrarRuta(estaRuta + " / " + btnVerHistorial.getText());
-    }
-
-    private void botonBuscar() {
-        modeloTabla.actualizar(logicaPaciente.buscar(txtBuscarPorNombre.getText(), txtBuscarPorApellido.getText(), txtBuscarPorDni.getText()));
-    }
-
-    private void actualizarBotonesTabla() {
-
-        boolean registroSeleccionado = tablaPacientes.getSelectedRow() != -1;
-
-        btnAgregarPaciente.setEnabled(!registroSeleccionado);
-        btnModificarDatos.setEnabled(registroSeleccionado);
-        btnEliminarPaciente.setEnabled(registroSeleccionado);
-        btnVerHistorial.setEnabled(registroSeleccionado);
-    }
-
-    private void agregarEfectoResaltar(JButton boton) {
+    private void agregarEfectoResaltado(JButton boton) {
         boton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseExited(MouseEvent e) {
@@ -312,34 +280,91 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
         });
     }
 
-    private void registrarRuta(String ruta) {
-        actualizarRuta.actualizarRuta(ruta);
-        setRuta(ruta);
+    private void actualizarBotonesTabla() {
+
+        boolean registroSeleccionado = tablaPacientes.getSelectedRow() != -1;
+
+        btnAgregarPaciente.setEnabled(!registroSeleccionado);
+        btnModificarDatos.setEnabled(registroSeleccionado);
+        btnEliminarPaciente.setEnabled(registroSeleccionado);
+        btnVerHistorial.setEnabled(registroSeleccionado);
+    }
+
+    private void botonCrear() {
+        panelCrearEditarPaciente.modoCrear();
+        cardLayoutContenidoPacientes.show(panelContenidoPacientes, "crearEditar");
+        registrarRuta(ESTA_RUTA + " / " + btnAgregarPaciente.getText());
+    }
+
+    private void botonEditar() {
+        Paciente pacienteSeleccionado = modeloTabla.traerPaciente(tablaPacientes.getSelectedRow());
+        panelCrearEditarPaciente.modoEditar(pacienteSeleccionado);
+        cardLayoutContenidoPacientes.show(panelContenidoPacientes, "crearEditar");
+        registrarRuta(ESTA_RUTA + " / " + btnModificarDatos.getText());
+    }
+
+    private void botonEliminar() {
+        Paciente paciente = logicaPaciente.traerPaciente(Integer.parseInt(String.valueOf(modeloTabla.getValueAt(tablaPacientes.getSelectedRow(), 0))));
+
+        String mensaje = "¿Seguro que desea eliminar los datos del paciente con ID: " + paciente.getIdPaciente() + ", nombre completo: " + paciente.getNombre() + " " + paciente.getApellido() + ", DNI: " + paciente.getDni() + "?"
+                + " Está acción será de forma permanente y no podrá deshacerse.";
+        int opcionConfirmacion = JOptionPane.showConfirmDialog(null, mensaje, "Eliminar datos", JOptionPane.OK_CANCEL_OPTION);
+
+        if (opcionConfirmacion == JOptionPane.OK_OPTION) {
+
+            try {
+                logicaPaciente.eliminar(paciente.getIdPaciente());
+            } catch (ProblemaPersistencia e) {
+                JOptionPane.showMessageDialog(null, e.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            modeloTabla.actualizar(logicaPaciente.traerTodos());
+            JOptionPane.showMessageDialog(null, "Datos del paciente eliminados exitosamente.", "Datos paciente eliminados", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void botonVerHistorial() {
+        Paciente pacienteSeleccionado = modeloTabla.traerPaciente(tablaPacientes.getSelectedRow());
+        panelVerHistorial.cargarPaciente(pacienteSeleccionado);
+        cardLayoutContenidoPacientes.show(panelContenidoPacientes, "verHistorial");
+        registrarRuta(ESTA_RUTA + " / " + btnVerHistorial.getText());
+    }
+
+    private void botonBuscar() {
+        modeloTabla.actualizar(
+                logicaPaciente.buscar(
+                        txtBuscarPorNombre.getText().trim(),
+                        txtBuscarPorApellido.getText().trim(),
+                        txtBuscarPorDni.getText().trim()
+                )
+        );
     }
 
     @Override
-    public void eventoGuardarPacienteNuevo(Paciente paciente) {
+    public void guardarNuevoPaciente(String nombre, String apellido, String dni, String telefono, String correoElectronico, String observacion) {
         try {
-            logicaPaciente.crearNuevo(paciente);
+            logicaPaciente.crearNuevo(nombre, apellido, dni, telefono, correoElectronico, observacion);
         } catch (CampoInvalido e) {
             JOptionPane.showMessageDialog(null, e.getMensaje(),
-                    "Campos Vacíos", JOptionPane.ERROR_MESSAGE);
+                    "Campo inválido", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         modeloTabla.actualizar(logicaPaciente.traerTodos());
         JOptionPane.showMessageDialog(null, "Nuevo paciente registrado con éxito.", "Paciente registrado", JOptionPane.INFORMATION_MESSAGE);
         cardLayoutContenidoPacientes.show(panelContenidoPacientes, "inicioPacientes");
-        registrarRuta(estaRuta);
+        registrarRuta(ESTA_RUTA);
     }
 
     @Override
-    public void eventoGuardarPacienteEditado(Paciente paciente) {
+    public void guardarPacienteEditado(Paciente pacienteEditar, String nombre, String apellido, String dni, String telefono, String correoElectronico, String observacion) {
         try {
-            logicaPaciente.editarDatos(paciente);
+            logicaPaciente.editarDatos(pacienteEditar, nombre, apellido, dni, telefono, correoElectronico, observacion);
         } catch (CampoInvalido e) {
             JOptionPane.showMessageDialog(null, e.getMensaje(),
-                    "Campos Vacíos", JOptionPane.ERROR_MESSAGE);
+                    "Campo inválido", JOptionPane.ERROR_MESSAGE);
             return;
         } catch (ProblemaPersistencia e) {
             JOptionPane.showMessageDialog(null, "Ha ocurrido un problema con la base de datos. Comuníquese con su desarrolador y/o intente más tarde.",
@@ -350,19 +375,24 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
         modeloTabla.actualizar(logicaPaciente.traerTodos());
         JOptionPane.showMessageDialog(null, "Paciente editado con éxito.", "Paciente editado", JOptionPane.INFORMATION_MESSAGE);
         cardLayoutContenidoPacientes.show(panelContenidoPacientes, "inicioPacientes");
-        registrarRuta(estaRuta);
+        registrarRuta(ESTA_RUTA);
     }
 
     @Override
     public void eventoCancelar() {
         cardLayoutContenidoPacientes.show(panelContenidoPacientes, "inicioPacientes");
-        registrarRuta(estaRuta);
+        registrarRuta(ESTA_RUTA);
     }
 
     @Override
-    public void eventoVolver() {
+    public void volver() {
         cardLayoutContenidoPacientes.show(panelContenidoPacientes, "inicioPacientes");
-        registrarRuta(estaRuta);
+        registrarRuta(ESTA_RUTA);
+    }
+
+    private void registrarRuta(String ruta) {
+        actualizarRuta.actualizar(ruta);
+        setRuta(ruta);
     }
 
     public String getRuta() {
@@ -377,7 +407,7 @@ public class PanelPacientes extends JPanel implements GuardarCancelarPaciente, V
 class ModeloTablaPaciente extends AbstractTableModel {
 
     private List<Paciente> listaPacientes = new ArrayList();
-    private String[] nombresColumnas = {"ID", "Nombre", "Apellido", "DNI", "Correo Electrónico", "Teléfono", "Observación"};
+    private final String[] nombresColumnas = {"ID", "Nombre", "Apellido", "DNI", "Correo Electrónico", "Teléfono", "Observación"};
 
     public void actualizar(List<Paciente> listaPacientes) {
         this.listaPacientes = listaPacientes;
@@ -407,32 +437,32 @@ class ModeloTablaPaciente extends AbstractTableModel {
     public Object getValueAt(int rowIndex, int columnIndex) {
         Paciente paciente = listaPacientes.get(rowIndex);
 
-        switch (columnIndex) {
+        return switch (columnIndex) {
 
-            case 0:
-                return paciente.getIdPaciente();
+            case 0 ->
+                paciente.getIdPaciente();
 
-            case 1:
-                return paciente.getNombre();
+            case 1 ->
+                paciente.getNombre();
 
-            case 2:
-                return paciente.getApellido();
+            case 2 ->
+                paciente.getApellido();
 
-            case 3:
-                return paciente.getDni();
+            case 3 ->
+                paciente.getDni();
 
-            case 4:
-                return paciente.getCorreoElectronico();
+            case 4 ->
+                paciente.getCorreoElectronico();
 
-            case 5:
-                return paciente.getTelefono();
+            case 5 ->
+                paciente.getTelefono();
 
-            case 6:
-                return paciente.getObservacion();
+            case 6 ->
+                paciente.getObservacion();
 
-            default:
-                return null;
-        }
+            default ->
+                null;
+        };
     }
 
     @Override

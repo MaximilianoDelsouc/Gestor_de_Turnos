@@ -31,7 +31,7 @@ import logica.clases.Paciente;
 
 public class DialogBuscarPacienteTurno extends JDialog {
 
-    private LogicaPaciente logicaPaciente;
+    private final LogicaPaciente logicaPaciente;
 
     private ModeloTablaPaciente modeloTabla;
     private JTable tablaPacientes;
@@ -139,6 +139,8 @@ public class DialogBuscarPacienteTurno extends JDialog {
         gridBagConstraintsPanelBusqueda.gridx = 3;
         gridBagConstraintsPanelBusqueda.gridy = 0;
         panelOpcionesBusqueda.add(Box.createHorizontalStrut(145));
+        
+        panelOpcionesBusqueda.setBackground(Color.WHITE);
 
         add(panelOpcionesBusqueda, BorderLayout.NORTH);
 
@@ -225,7 +227,13 @@ public class DialogBuscarPacienteTurno extends JDialog {
     }
 
     private void botonBuscar() {
-        modeloTabla.actualizar(logicaPaciente.buscar(txtBuscarPorNombre.getText(), txtBuscarPorApellido.getText(), txtBuscarPorDni.getText()));
+        modeloTabla.actualizar(
+                logicaPaciente.buscar(
+                        txtBuscarPorNombre.getText().trim(),
+                        txtBuscarPorApellido.getText().trim(),
+                        txtBuscarPorDni.getText().trim()
+                )
+        );
     }
 
     private void botonSeleccionar() {

@@ -1,13 +1,10 @@
 package igu;
 
 import igu.clases_utilitarias.FabricaElementos;
-import igu.interfaces.GuardarCancelarPaciente;
+import igu.clases_utilitarias.LimiteCaracteresDocumentFilter;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
@@ -23,10 +20,12 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.text.JTextComponent;
 import logica.clases.Paciente;
+import igu.interfaces.AccionesPaciente;
+import javax.swing.text.AbstractDocument;
 
 public class PanelCrearEditarPaciente extends JPanel {
 
-    private GuardarCancelarPaciente guardarCancelar;
+    private final AccionesPaciente accionesPaciente;
 
     private JTextField txtNombre, txtApellido, txtDni, txtTelefono, txtCorreoElectronico;
     private JTextArea txtObservacion;
@@ -37,8 +36,8 @@ public class PanelCrearEditarPaciente extends JPanel {
 
     private Paciente pacienteEditar = null;
 
-    public PanelCrearEditarPaciente(GuardarCancelarPaciente guardarCancelar) {
-        this.guardarCancelar = guardarCancelar;
+    public PanelCrearEditarPaciente(AccionesPaciente guardarCancelar) {
+        this.accionesPaciente = guardarCancelar;
 
         iniciarComponentes();
         iniciarEventos();
@@ -54,7 +53,7 @@ public class PanelCrearEditarPaciente extends JPanel {
         JLabel lblDni = new JLabel("DNI:");
         JLabel lblTelefono = new JLabel("Número de teléfono:");
         JLabel lblCorreoElectronico = new JLabel("Correo electrónico (Opcional):");
-        JLabel lblObservacion = new JLabel("Observación: (Opcional):");
+        JLabel lblObservacion = new JLabel("Observación (Opcional):");
 
         JLabel[] labelsCampos = {lblNombre, lblApellido, lblDni, lblTelefono, lblCorreoElectronico, lblObservacion};
         Font fuenteLabelsTextFields = new Font("Roboto SemiCondensed Medium", Font.PLAIN, 20);
@@ -79,6 +78,12 @@ public class PanelCrearEditarPaciente extends JPanel {
             textField.setEditable(true);
         }
 
+        ((AbstractDocument) txtNombre.getDocument()).setDocumentFilter(new LimiteCaracteresDocumentFilter(Paciente.LONGITUD_MAXIMA_NOMBRE));
+        ((AbstractDocument) txtApellido.getDocument()).setDocumentFilter(new LimiteCaracteresDocumentFilter(Paciente.LONGITUD_MAXIMA_APELLIDO));
+        ((AbstractDocument) txtDni.getDocument()).setDocumentFilter(new LimiteCaracteresDocumentFilter(Paciente.LONGITUD_MAXIMA_DNI));
+        ((AbstractDocument) txtTelefono.getDocument()).setDocumentFilter(new LimiteCaracteresDocumentFilter(Paciente.LONGITUD_MAXIMA_TELEFONO));
+        ((AbstractDocument) txtCorreoElectronico.getDocument()).setDocumentFilter(new LimiteCaracteresDocumentFilter(Paciente.LONGITUD_MAXIMA_CORREO_ELECTRONICO));
+
         txtObservacion = new JTextArea(5, 30);
         txtObservacion.setLineWrap(true);
         txtObservacion.setWrapStyleWord(true);
@@ -99,33 +104,8 @@ public class PanelCrearEditarPaciente extends JPanel {
         btnCancelar = new JButton("Cancelar");
 
         JButton[] botones = {btnGuardar, btnLimpiarTodo, btnRestablecerTodo, btnCancelar};
-        Font fuenteBotones = new Font("Roboto SemiCondensed Medium", Font.BOLD, 18);
-        for (JButton boton : botones) {
-            boton.setFont(fuenteBotones);
-            boton.setForeground(Color.BLACK);
-            boton.setBackground(colorFondoTexts);
-            boton.setFocusPainted(false);
-            boton.setMargin(new Insets(40, 50, 40, 50));
-        }
 
-        JPanel panelBotones = new JPanel();
-        panelBotones.setLayout(new GridBagLayout());
-
-        GridBagConstraints gridBagConstrains = new GridBagConstraints();
-        gridBagConstrains.fill = GridBagConstraints.HORIZONTAL;
-        gridBagConstrains.gridx = 0;
-
-        gridBagConstrains.gridy = 0;
-        panelBotones.add(btnGuardar, gridBagConstrains);
-
-        gridBagConstrains.gridy = 1;
-        panelBotones.add(btnLimpiarTodo, gridBagConstrains);
-
-        gridBagConstrains.gridy = 2;
-        panelBotones.add(btnRestablecerTodo, gridBagConstrains);
-
-        gridBagConstrains.gridy = 3;
-        panelBotones.add(btnCancelar, gridBagConstrains);
+        JPanel panelBotones = FabricaElementos.crearPanelBotonesParaCrearEditar(botones);
 
         //Agregar todo al panel del contenido
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, panelAgregarModificarPaciente, panelBotones);
@@ -196,35 +176,75 @@ public class PanelCrearEditarPaciente extends JPanel {
 
     private void botonGuardar() {
         String nombre, apellido, dni, telefono, correoElectronico, observacion;
-        nombre = txtNombre.getText().trim();
-        apellido = txtApellido.getText().trim();
-        dni = txtDni.getText().trim();
-        correoElectronico = txtCorreoElectronico.getText().trim();
-        telefono = txtTelefono.getText().trim();
-        observacion = txtObservacion.getText().trim();
+        //Los JTextFields no devuelven null
+        nombre = txtNombre.getText().strip();
+        apellido = txtApellido.getText().strip();
+        dni = txtDni.getText().strip();
+        telefono = txtTelefono.getText().strip();
+        correoElectronico = txtCorreoElectronico.getText().strip();
+        observacion = txtObservacion.getText().strip();
 
-        //Los JTextFields nunca devuelven null
-        if (nombre.isEmpty() || apellido.isEmpty() || dni.isEmpty() || telefono.isEmpty()) {
-            JOptionPane.showMessageDialog(null, "Verifique los campos de Nombre, Apellido, DNI y Número de Teléfono. Estos no puden estar vacíos",
-                    "Campos Vacíos", JOptionPane.ERROR_MESSAGE);
-            return;
+        if (correoElectronico.isEmpty()) {
+            correoElectronico = null;
         }
 
-        //CREAR NUEVO PACIENTE
-        if (pacienteEditar == null) {
-            Paciente paciente = new Paciente(nombre, apellido, dni, telefono, correoElectronico, observacion);
-            guardarCancelar.eventoGuardarPacienteNuevo(paciente);
-
-            //EDITAR PACIENTE
-        } else {
-            pacienteEditar.setNombre(nombre);
-            pacienteEditar.setApellido(apellido);
-            pacienteEditar.setDni(dni);
-            pacienteEditar.setTelefono(telefono);
-            pacienteEditar.setCorreoElectronico(correoElectronico);
-            pacienteEditar.setObservacion(observacion);
-            guardarCancelar.eventoGuardarPacienteEditado(pacienteEditar);
+        if (observacion.isEmpty()) {
+            observacion = null;
         }
+
+        boolean aprobado = verificarCamposIngresados(nombre, apellido, dni, telefono, correoElectronico);
+        if (aprobado) {
+
+            //CREAR NUEVO PACIENTE
+            if (pacienteEditar == null) {
+                accionesPaciente.guardarNuevoPaciente(nombre, apellido, dni, telefono, correoElectronico, observacion);
+
+                //EDITAR PACIENTE
+            } else {
+                accionesPaciente.guardarPacienteEditado(pacienteEditar, nombre, apellido, dni, telefono, correoElectronico, observacion);
+            }
+        }
+    }
+
+    private static boolean verificarCamposIngresados(String nombre, String apellido, String dni, String telefono, String correoElectronico) {
+        if (nombre.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Debe ingresar un nombre para el paciente.",
+                    "Campo vacío", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (apellido.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Debe ingresar un apellido para el paciente.",
+                    "Campo vacío", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (dni.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Debe ingresar un número de DNI para el paciente.",
+                    "Campo vacío", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (dni.length() != Paciente.LONGITUD_MAXIMA_DNI) {
+            JOptionPane.showMessageDialog(null, "El número de DNI para el paciente debe contener 8 dígitos.",
+                    "DNI inválido", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (telefono.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Debe ingresar un número de teléfono para el paciente.",
+                    "Campo vacío", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (correoElectronico != null
+                && (!correoElectronico.contains("@") || (!correoElectronico.endsWith(".com") && !correoElectronico.endsWith(".es")))) {
+            JOptionPane.showMessageDialog(null, "La dirección de correo electrónico del paciente debe contener un @ y un dominio .com o .es.",
+                    "Dirección de correo electrónico inválida", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        return true;
     }
 
     private void botonLimpiarTodo() {
@@ -239,13 +259,13 @@ public class PanelCrearEditarPaciente extends JPanel {
     }
 
     private void botonCancelar() {
-        guardarCancelar.eventoCancelar();
+        accionesPaciente.eventoCancelar();
     }
 
     private void cargarCampos(Paciente pacienteSeleccionado) {
         txtNombre.setText(pacienteSeleccionado.getNombre());
         txtApellido.setText(pacienteSeleccionado.getApellido());
-        txtDni.setText(pacienteSeleccionado.getTelefono());
+        txtDni.setText(pacienteSeleccionado.getDni());
         txtTelefono.setText(pacienteSeleccionado.getTelefono());
         txtCorreoElectronico.setText(pacienteSeleccionado.getCorreoElectronico());
         txtObservacion.setText(pacienteSeleccionado.getObservacion());

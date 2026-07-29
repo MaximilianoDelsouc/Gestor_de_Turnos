@@ -2,5 +2,5 @@ package igu.interfaces;
 
 public interface ActualizarRuta {
 
-    public void actualizarRuta(String ruta);
+    public void actualizar(String ruta);
 }

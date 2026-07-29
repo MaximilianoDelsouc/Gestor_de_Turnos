@@ -7,6 +7,6 @@ import logica.clases.Turno;
 
 public interface TraerHorariosDisponibles {
 
-    public Map<Date, Date> eventoTraerHorariosDisponibles(Date fecha, TipoConsulta tipoConsulta, Turno turnoIgnorar);
+    public Map<Date, Date> traer(Date fecha, TipoConsulta tipoConsulta, Turno turnoIgnorar);
 
 }

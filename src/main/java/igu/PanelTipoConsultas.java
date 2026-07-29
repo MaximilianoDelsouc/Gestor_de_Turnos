@@ -20,7 +20,6 @@ import javax.swing.JTable;
 import javax.swing.JToggleButton;
 import javax.swing.table.AbstractTableModel;
 import logica.clases.TipoConsulta;
-import igu.interfaces.GuardarCancelarTipoConsulta;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.AbstractButton;
@@ -30,24 +29,28 @@ import javax.swing.event.ListSelectionListener;
 import logica.LogicaTipoConsulta;
 import logica.exceptions.CampoInvalido;
 import persistencia.exceptions.ProblemaPersistencia;
+import igu.interfaces.AccionesTipoConsulta;
+import javax.swing.Box;
+import logica.exceptions.TipoConsultaDeshabilitado;
 
-public class PanelTipoConsultas extends JPanel implements GuardarCancelarTipoConsulta {
+public class PanelTipoConsultas extends JPanel implements AccionesTipoConsulta {
 
-    private LogicaTipoConsulta logicaTipoConsulta;
+    private final LogicaTipoConsulta logicaTipoConsulta;
 
-    private ActualizarRuta actualizarRuta;
+    private final ActualizarRuta actualizarRuta;
     private String ruta;
-    private final static String estaRuta = "Tipo de Consultas";
+    private static final String ESTA_RUTA = "Tipos de Consultas";
 
     private ModeloTablaTipoConsultas modeloTabla;
     private JTable tablaTipoConsultas;
     private JToggleButton btnOrdenarAlfabeticamente;
-    private JButton btnCrearConsulta, btnModificarConsulta, btnEliminarConsulta;
+    private JToggleButton btnVerConsultasDeshabilitadas;
+    private JButton btnCrearConsulta, btnModificarConsulta, btnEliminarDeshabilitarConsulta, btnHabilitarConsulta;
 
     private static final Color COLOR_FONDO_BOTONES = Color.LIGHT_GRAY;
     private static final Color COLOR_RESALTADO_BOTONES = Color.LIGHT_GRAY.brighter();
 
-    private JPanel panelContenidoTipoConsultas;
+    private JPanel panelContenidoTiposConsulta;
     private CardLayout cardLayoutContenidoTipoConsultas;
     private PanelCrearEditarTipoConsulta panelCrearEditarTipoConsulta;
 
@@ -55,7 +58,7 @@ public class PanelTipoConsultas extends JPanel implements GuardarCancelarTipoCon
         this.logicaTipoConsulta = logicaTipoConsulta;
         this.actualizarRuta = actualizarRuta;
         iniciarComponentes();
-        iniciarEventos();
+        iniciarEventosComponentes();
     }
 
     private void iniciarComponentes() {
@@ -64,8 +67,9 @@ public class PanelTipoConsultas extends JPanel implements GuardarCancelarTipoCon
 
         JPanel panelInicioTipoConsultas = new JPanel(new BorderLayout());
         panelInicioTipoConsultas.setBorder(BorderFactory.createEmptyBorder(20, 15, 20, 15));
+        panelInicioTipoConsultas.setBackground(Color.WHITE);
 
-        //Tabla de todos los tipos de consultas
+        //Tabla de tipos de consulta
         modeloTabla = new ModeloTablaTipoConsultas();
         tablaTipoConsultas = FabricaElementos.crearTabla(modeloTabla);
         tablaTipoConsultas.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -75,48 +79,59 @@ public class PanelTipoConsultas extends JPanel implements GuardarCancelarTipoCon
 
         panelInicioTipoConsultas.add(scrollTabla, BorderLayout.CENTER);
 
-        //Panel del botón para ordenar alfabéticamente
+        //Panel de botones de filtro                       
         btnOrdenarAlfabeticamente = new JToggleButton("Ordenar alfabéticamente");
-        btnOrdenarAlfabeticamente.setFont(new Font("Roboto SemiCondensed Medium", Font.PLAIN, 18));
-        btnOrdenarAlfabeticamente.setBackground(new Color(255, 243, 188));
+        btnOrdenarAlfabeticamente.setFont(new Font("Roboto SemiCondensed Medium", Font.BOLD, 18));
+        btnOrdenarAlfabeticamente.setBackground(COLOR_FONDO_BOTONES);
         btnOrdenarAlfabeticamente.setFocusPainted(false);
 
-        JPanel panelBotonOrdenarAlfabeticamente = new JPanel();
-        panelBotonOrdenarAlfabeticamente.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 10));
-        panelBotonOrdenarAlfabeticamente.add(btnOrdenarAlfabeticamente);
+        btnVerConsultasDeshabilitadas = new JToggleButton("Ver deshabilitados");
+        btnVerConsultasDeshabilitadas.setFont(new Font("Roboto SemiCondensed Medium", Font.PLAIN, 18));
+        btnVerConsultasDeshabilitadas.setBackground(COLOR_FONDO_BOTONES);
+        btnVerConsultasDeshabilitadas.setFocusPainted(false);
 
-        panelInicioTipoConsultas.add(panelBotonOrdenarAlfabeticamente, BorderLayout.NORTH);
+        JPanel panelBotonesFiltros = new JPanel();
+        panelBotonesFiltros.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 10));
+        panelBotonesFiltros.add(btnOrdenarAlfabeticamente);
+        panelBotonesFiltros.add(Box.createHorizontalStrut(30));
+        panelBotonesFiltros.add(btnVerConsultasDeshabilitadas);
+
+        panelBotonesFiltros.setBackground(Color.WHITE);
+
+        panelInicioTipoConsultas.add(panelBotonesFiltros, BorderLayout.NORTH);
 
         //Panel botones
         btnCrearConsulta = new JButton("Crear");
         btnModificarConsulta = new JButton("Modificar Datos");
-        btnEliminarConsulta = new JButton("Eliminar");
+        btnEliminarDeshabilitarConsulta = new JButton("Eliminar / Deshabilitar");
+        btnHabilitarConsulta = new JButton("Habilitar");
 
         btnCrearConsulta.setEnabled(true);
         btnModificarConsulta.setEnabled(false);
-        btnEliminarConsulta.setEnabled(false);
+        btnEliminarDeshabilitarConsulta.setEnabled(false);
+        btnHabilitarConsulta.setEnabled(false);
 
-        JButton[] botones = {btnCrearConsulta, btnModificarConsulta, btnEliminarConsulta};
+        JButton[] botones = {btnCrearConsulta, btnModificarConsulta, btnEliminarDeshabilitarConsulta, btnHabilitarConsulta};
         JPanel panelBotonesTabla = FabricaElementos.crearPanelBotonesParaTabla(botones);
 
         panelInicioTipoConsultas.add(panelBotonesTabla, BorderLayout.EAST);
 
         //Configurar panel de contenido interno TipoConsultas
         cardLayoutContenidoTipoConsultas = new CardLayout();
-        panelContenidoTipoConsultas = new JPanel(cardLayoutContenidoTipoConsultas);
+        panelContenidoTiposConsulta = new JPanel(cardLayoutContenidoTipoConsultas);
 
         panelCrearEditarTipoConsulta = new PanelCrearEditarTipoConsulta(this);
 
-        panelContenidoTipoConsultas.add(panelInicioTipoConsultas, "inicioTipoConsultas");
-        panelContenidoTipoConsultas.add(panelCrearEditarTipoConsulta, "crearEditar");
+        panelContenidoTiposConsulta.add(panelInicioTipoConsultas, "inicioTipoConsultas");
+        panelContenidoTiposConsulta.add(panelCrearEditarTipoConsulta, "crearEditar");
 
-        cardLayoutContenidoTipoConsultas.show(panelContenidoTipoConsultas, "inicioTipoConsultas");
-        setRuta(estaRuta);
+        cardLayoutContenidoTipoConsultas.show(panelContenidoTiposConsulta, "inicioTipoConsultas");
+        setRuta(ESTA_RUTA);
 
-        add(panelContenidoTipoConsultas, BorderLayout.CENTER);
+        add(panelContenidoTiposConsulta, BorderLayout.CENTER);
     }
 
-    private void iniciarEventos() {
+    private void iniciarEventosComponentes() {
 
         btnCrearConsulta.addActionListener(new ActionListener() {
             @Override
@@ -136,27 +151,41 @@ public class PanelTipoConsultas extends JPanel implements GuardarCancelarTipoCon
 
         agregarEfectoResaltado(btnModificarConsulta);
 
-        btnEliminarConsulta.addActionListener(new ActionListener() {
+        btnEliminarDeshabilitarConsulta.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 botonEliminarConsulta();
             }
         });
 
-        agregarEfectoResaltado(btnEliminarConsulta);
+        agregarEfectoResaltado(btnEliminarDeshabilitarConsulta);
+
+        btnHabilitarConsulta.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                botonHabilitarConsulta();
+            }
+        });
+
+        agregarEfectoResaltado(btnHabilitarConsulta);
 
         btnOrdenarAlfabeticamente.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (btnOrdenarAlfabeticamente.isSelected()) {
-                    botonOrdenarAlfabeticamente(true);
-                } else {
-                    botonOrdenarAlfabeticamente(false);
-                }
+                botonesFiltros();
             }
         });
 
         agregarEfectoResaltado(btnOrdenarAlfabeticamente);
+
+        btnVerConsultasDeshabilitadas.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                botonesFiltros();
+            }
+        });
+
+        agregarEfectoResaltado(btnVerConsultasDeshabilitadas);
 
         tablaTipoConsultas.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
             @Override
@@ -166,57 +195,18 @@ public class PanelTipoConsultas extends JPanel implements GuardarCancelarTipoCon
                 }
             }
         });
+
+        panelContenidoTiposConsulta.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                deseleccionarTabla();
+            }
+
+        });
     }
 
-    private void botonCrearConsulta() {
-        panelCrearEditarTipoConsulta.modoCrear();
-        cardLayoutContenidoTipoConsultas.show(panelContenidoTipoConsultas, "crearEditar");
-        registrarRuta(estaRuta + " / " + btnCrearConsulta.getText());
-    }
-
-    private void botonModificarConsulta() {
-        TipoConsulta tipoConsultaSeleccionada = modeloTabla.traerTipoConsulta(tablaTipoConsultas.getSelectedRow());
-        panelCrearEditarTipoConsulta.modoEditar(tipoConsultaSeleccionada);
-        cardLayoutContenidoTipoConsultas.show(panelContenidoTipoConsultas, "crearEditar");
-        registrarRuta(estaRuta + " / " + btnModificarConsulta.getText());
-    }
-
-    private void botonEliminarConsulta() {
-        try {
-            logicaTipoConsulta.eliminar(Integer.valueOf(String.valueOf(modeloTabla.getValueAt(tablaTipoConsultas.getSelectedRow(), 0))));
-        } catch (ProblemaPersistencia e) {
-            JOptionPane.showMessageDialog(null, "Ha ocurrido un problema con la base de datos. Comuníquese con su desarrolador y/o intente más tarde.",
-                    "Problema con base de datos.", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        if (btnOrdenarAlfabeticamente.isSelected()) {
-            botonOrdenarAlfabeticamente(true);
-        } else {
-            actualizarContenidoTabla();
-        }
-
-        JOptionPane.showMessageDialog(null, "Datos del Tipo de consulta eliminados exitosamente.", "Datos tipo de consulta eliminados", JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    private void botonOrdenarAlfabeticamente(boolean activado) {
-        if (activado) {
-            modeloTabla.actualizar(logicaTipoConsulta.ordenarAlfabeticamente(logicaTipoConsulta.traerTodos()));
-        } else {
-            modeloTabla.actualizar(logicaTipoConsulta.traerTodos());
-        }
-    }
-
-    private void actualizarContenidoTabla() {
-        modeloTabla.actualizar(logicaTipoConsulta.traerTodos());
-    }
-
-    private void actualizarBotonesTabla() {
-        boolean registroSeleccionado = tablaTipoConsultas.getSelectedRow() != -1;
-
-        btnCrearConsulta.setEnabled(!registroSeleccionado);
-        btnModificarConsulta.setEnabled(registroSeleccionado);
-        btnEliminarConsulta.setEnabled(registroSeleccionado);
+    private void deseleccionarTabla() {
+        tablaTipoConsultas.clearSelection();
     }
 
     private void agregarEfectoResaltado(AbstractButton boton) {
@@ -237,61 +227,159 @@ public class PanelTipoConsultas extends JPanel implements GuardarCancelarTipoCon
         });
     }
 
-    private void registrarRuta(String ruta) {
-        actualizarRuta.actualizarRuta(ruta);
-        setRuta(ruta);
+    private void actualizarBotonesTabla() {
+        boolean hayRegistroSeleccionado = tablaTipoConsultas.getSelectedRow() != -1;
+
+        if (hayRegistroSeleccionado) {
+            btnCrearConsulta.setEnabled(false);
+            TipoConsulta tipoConsultaSeleccionado = modeloTabla.traerTipoConsulta(tablaTipoConsultas.getSelectedRow());
+            if (tipoConsultaSeleccionado.isHabilitado()) {
+                btnModificarConsulta.setEnabled(true);
+                btnEliminarDeshabilitarConsulta.setEnabled(true);
+                btnHabilitarConsulta.setEnabled(false);
+            } else {
+                btnModificarConsulta.setEnabled(false);
+                btnEliminarDeshabilitarConsulta.setEnabled(false);
+                btnHabilitarConsulta.setEnabled(true);
+            }
+
+        } else {
+            btnCrearConsulta.setEnabled(true);
+            btnModificarConsulta.setEnabled(false);
+            btnEliminarDeshabilitarConsulta.setEnabled(false);
+            btnHabilitarConsulta.setEnabled(false);
+        }
     }
 
-    @Override
-    public void eventoGuardarTipoConsultaNueva(TipoConsulta tipoConsulta) {
+    private void botonCrearConsulta() {
+        panelCrearEditarTipoConsulta.modoCrear();
+        cardLayoutContenidoTipoConsultas.show(panelContenidoTiposConsulta, "crearEditar");
+        registrarRuta(ESTA_RUTA + " / " + btnCrearConsulta.getText());
+    }
+
+    private void botonModificarConsulta() {
+        TipoConsulta tipoConsultaSeleccionada = modeloTabla.traerTipoConsulta(tablaTipoConsultas.getSelectedRow());
+        panelCrearEditarTipoConsulta.modoEditar(tipoConsultaSeleccionada);
+        cardLayoutContenidoTipoConsultas.show(panelContenidoTiposConsulta, "crearEditar");
+        registrarRuta(ESTA_RUTA + " / " + btnModificarConsulta.getText());
+    }
+
+    private void botonEliminarConsulta() {
+        TipoConsulta tipoConsulta = logicaTipoConsulta.traerTipoConsulta(Integer.parseInt(String.valueOf(modeloTabla.getValueAt(tablaTipoConsultas.getSelectedRow(), 0))));
+
+        String mensaje = "¿Seguro que desea eliminar o deshabilitar el tipo de consulta con ID: " + tipoConsulta.getIdTipoConsulta() + ", nombre: " + tipoConsulta.getNombreConsulta() + "?"
+                + " Si el tipo de consulta a sido registrado en turnos, entonces de deshabilitará y ya no podrá registrar nuevos turnos con este hasta que sea nuevamente habilitado."
+                + " Caso contrario, se eliminará permanentemente.";
+        int opcionConfirmacion = JOptionPane.showConfirmDialog(null, mensaje, "Eliminar", JOptionPane.OK_CANCEL_OPTION);
+
+        if (opcionConfirmacion == JOptionPane.OK_OPTION) {
+
+            try {
+                logicaTipoConsulta.eliminarDeshabilitar(Integer.parseInt(String.valueOf(modeloTabla.getValueAt(tablaTipoConsultas.getSelectedRow(), 0))));
+            } catch (ProblemaPersistencia e) {
+                JOptionPane.showMessageDialog(null, e.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            botonesFiltros();
+
+            JOptionPane.showMessageDialog(null, "Tipo de consulta eliminado/habilitado exitosamente.", "Tipo de consulta eliminado/deshabilitado", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    private void botonHabilitarConsulta() {
         try {
-            logicaTipoConsulta.crearNuevo(tipoConsulta);
-        } catch (CampoInvalido e) {
-            JOptionPane.showMessageDialog(null, e.getMensaje(),
-                    "Campos vacíos", JOptionPane.ERROR_MESSAGE);
+            logicaTipoConsulta.habilitar(modeloTabla.traerTipoConsulta(tablaTipoConsultas.getSelectedRow()));
+        } catch (ProblemaPersistencia e) {
+            JOptionPane.showMessageDialog(null, e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        if (btnOrdenarAlfabeticamente.isSelected()) {
-            botonOrdenarAlfabeticamente(true);
-        } else {
-            actualizarContenidoTabla();
+        botonesFiltros();
+
+        JOptionPane.showMessageDialog(null, "Tipo de consulta habilitado exitosamente.", "Tipo de consulta habilitado", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    @Override
+    public void guardarNuevoTipoConsulta(String nombreConsulta, int duracionMinutos, int costo) {
+        try {
+            logicaTipoConsulta.crearNuevo(nombreConsulta, duracionMinutos, costo);
+        } catch (CampoInvalido e) {
+            JOptionPane.showMessageDialog(null, e.getMensaje(),
+                    "Campo inválido", JOptionPane.ERROR_MESSAGE);
+            return;
         }
+
+        botonesFiltros();
 
         JOptionPane.showMessageDialog(null, "Nuevo tipo de consulta registrada con éxito.", "Tipo de consulta registrada.", JOptionPane.INFORMATION_MESSAGE);
-        cardLayoutContenidoTipoConsultas.show(panelContenidoTipoConsultas, "inicioTipoConsultas");
-        registrarRuta(estaRuta);
+        cardLayoutContenidoTipoConsultas.show(panelContenidoTiposConsulta, "inicioTipoConsultas");
+        registrarRuta(ESTA_RUTA);
     }
 
     @Override
-    public void eventoGuardarTipoConsultaEditada(TipoConsulta tipoConsulta) {
+    public void guardarTipoConsultaEditado(TipoConsulta tipoConsultaEditar, String nombreConsulta, int duracionMinutos, int costo) {
         try {
-            logicaTipoConsulta.editarDatos(tipoConsulta);
+            logicaTipoConsulta.editarDatos(tipoConsultaEditar, nombreConsulta, duracionMinutos, costo);
+
         } catch (CampoInvalido e) {
             JOptionPane.showMessageDialog(null, e.getMensaje(),
-                    "Campos vacíos", JOptionPane.ERROR_MESSAGE);
+                    "Campo inválido", JOptionPane.ERROR_MESSAGE);
             return;
+
+        } catch (TipoConsultaDeshabilitado e) {
+            JOptionPane.showMessageDialog(null, e.getMessage(),
+                    "Tipo consulta deshabilitado", JOptionPane.ERROR_MESSAGE);
+            return;
+
         } catch (ProblemaPersistencia e) {
-            JOptionPane.showMessageDialog(null, "Ha ocurrido un problema con la base de datos. Comuníquese con su desarrolador y/o intente más tarde.",
-                    "Problema con base de datos.", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        botonesFiltros();
+
+        JOptionPane.showMessageDialog(null, "Tipo de consulta editada con éxito.", "Tipo de consulta editada", JOptionPane.INFORMATION_MESSAGE);
+        cardLayoutContenidoTipoConsultas.show(panelContenidoTiposConsulta, "inicioTipoConsultas");
+        registrarRuta(ESTA_RUTA);
+    }
+
+    private void botonesFiltros() {
+
+        if (btnOrdenarAlfabeticamente.isSelected() && btnVerConsultasDeshabilitadas.isSelected()) {
+            modeloTabla.actualizar(logicaTipoConsulta.ordenarAlfabeticamente(logicaTipoConsulta.traerTodosDeshabilitados()));
             return;
         }
 
         if (btnOrdenarAlfabeticamente.isSelected()) {
-            botonOrdenarAlfabeticamente(true);
-        } else {
-            actualizarContenidoTabla();
+            modeloTabla.actualizar(logicaTipoConsulta.ordenarAlfabeticamente(logicaTipoConsulta.traerTodos()));
+            return;
         }
 
-        JOptionPane.showMessageDialog(null, "Tipo de consulta editada con éxito.", "Tipo de consulta editada", JOptionPane.INFORMATION_MESSAGE);
-        cardLayoutContenidoTipoConsultas.show(panelContenidoTipoConsultas, "inicioTipoConsultas");
-        registrarRuta(estaRuta);
+        if (btnVerConsultasDeshabilitadas.isSelected()) {
+            modeloTabla.actualizar(logicaTipoConsulta.traerTodosDeshabilitados());
+            return;
+        }
+
+        modeloTabla.actualizar(logicaTipoConsulta.traerTodos());
+    }
+
+    private void actualizarContenidoTabla() {
+        modeloTabla.actualizar(logicaTipoConsulta.traerTodos());
     }
 
     @Override
     public void eventocancelar() {
-        cardLayoutContenidoTipoConsultas.show(panelContenidoTipoConsultas, "inicioTipoConsultas");
-        registrarRuta(estaRuta);
+        cardLayoutContenidoTipoConsultas.show(panelContenidoTiposConsulta, "inicioTipoConsultas");
+        registrarRuta(ESTA_RUTA);
+    }
+
+    private void registrarRuta(String ruta) {
+        actualizarRuta.actualizar(ruta);
+        setRuta(ruta);
     }
 
     public String getRuta() {
@@ -306,7 +394,7 @@ public class PanelTipoConsultas extends JPanel implements GuardarCancelarTipoCon
 class ModeloTablaTipoConsultas extends AbstractTableModel {
 
     private List<TipoConsulta> listaTipoConsultas = new ArrayList();
-    private String[] nombreColumnas = {"ID", "Nombre de consulta", "Duración en Minutos", "Costo"};
+    private final String[] nombreColumnas = {"ID", "Nombre de consulta", "Duración en Minutos", "Costo"};
 
     public void actualizar(List<TipoConsulta> listaTipoConsultas) {
         this.listaTipoConsultas = listaTipoConsultas;
@@ -336,23 +424,23 @@ class ModeloTablaTipoConsultas extends AbstractTableModel {
     public Object getValueAt(int rowIndex, int columnIndex) {
         TipoConsulta tipoConsulta = listaTipoConsultas.get(rowIndex);
 
-        switch (columnIndex) {
+        return switch (columnIndex) {
 
-            case 0:
-                return tipoConsulta.getIdTipoConsulta();
+            case 0 ->
+                tipoConsulta.getIdTipoConsulta();
 
-            case 1:
-                return tipoConsulta.getNombreConsulta();
+            case 1 ->
+                tipoConsulta.getNombreConsulta();
 
-            case 2:
-                return tipoConsulta.getDuracionMinutos();
+            case 2 ->
+                tipoConsulta.getDuracionMinutos();
 
-            case 3:
-                return tipoConsulta.getCosto();
+            case 3 ->
+                tipoConsulta.getCosto();
 
-            default:
-                return null;
-        }
+            default ->
+                null;
+        };
     }
 
     @Override

@@ -7,9 +7,9 @@ public class CampoInvalido extends RuntimeException {
     public CampoInvalido() {
     }
 
-    public CampoInvalido(String message) {
-        super(message);
-        mensaje = message;
+    public CampoInvalido(String msg) {
+        super(msg);
+        mensaje = msg;
     }        
 
     public String getMensaje() {

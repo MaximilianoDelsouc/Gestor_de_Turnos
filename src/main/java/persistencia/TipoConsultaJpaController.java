@@ -1,3 +1,7 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 package persistencia;
 
 import java.io.Serializable;
@@ -6,23 +10,21 @@ import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Query;
 import javax.persistence.EntityNotFoundException;
-import javax.persistence.Persistence;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 import logica.clases.TipoConsulta;
 import persistencia.exceptions.NonexistentEntityException;
 
+/**
+ *
+ * @author TT
+ */
 public class TipoConsultaJpaController implements Serializable {
 
     public TipoConsultaJpaController(EntityManagerFactory emf) {
         this.emf = emf;
     }
     private EntityManagerFactory emf = null;
-
-    //Código agregado
-    public TipoConsultaJpaController() {
-        emf = Persistence.createEntityManagerFactory("GestorDeTurnos_UP");
-    }
 
     public EntityManager getEntityManager() {
         return emf.createEntityManager();
@@ -131,5 +133,5 @@ public class TipoConsultaJpaController implements Serializable {
             em.close();
         }
     }
-
+    
 }

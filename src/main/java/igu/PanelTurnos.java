@@ -4,7 +4,6 @@ import igu.clases_utilitarias.FabricaElementos;
 import igu.interfaces.ActualizarRuta;
 import igu.interfaces.ActualizarTurnosHoy;
 import igu.interfaces.BuscarPacienteTurno;
-import igu.interfaces.GuardarCancelarTurno;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -42,7 +41,6 @@ import logica.LogicaTurno;
 import logica.clases.TipoConsulta;
 import logica.clases.Turno;
 import logica.exceptions.CampoInvalido;
-import igu.interfaces.TraerHorariosDisponibles;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.AbstractButton;
@@ -51,34 +49,37 @@ import javax.swing.ListSelectionModel;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import logica.LogicaPaciente;
+import logica.clases.Paciente;
 import logica.clases.Turno.Estado;
-import logica.exceptions.EstadoInvalido;
-import logica.exceptions.TurnoReprogramarPasado;
 import persistencia.exceptions.ProblemaPersistencia;
+import igu.interfaces.AccionesTurno;
+import igu.interfaces.TraerHorariosDisponibles;
+import logica.exceptions.HorarioInvalido;
+import logica.exceptions.TipoConsultaInvalido;
 
-public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarPacienteTurno, TraerHorariosDisponibles {
+public class PanelTurnos extends JPanel implements AccionesTurno, BuscarPacienteTurno, TraerHorariosDisponibles {
 
-    private LogicaTurno logicaTurno;
-    private LogicaTipoConsulta logicaTipoConsulta;
-    private LogicaPaciente logicaPaciente;
-    private ActualizarTurnosHoy actualizarTurnosHoy;
+    private final LogicaTurno logicaTurno;
+    private final LogicaTipoConsulta logicaTipoConsulta;
+    private final LogicaPaciente logicaPaciente;
+    private final ActualizarTurnosHoy actualizarTurnosHoy;
 
-    private ActualizarRuta actualizarRuta;
+    private final ActualizarRuta actualizarRuta;
     private String ruta;
-    private final static String ESTA_RUTA = "Turnos";
+    private static final String ESTA_RUTA = "Turnos";
 
     private JPanel panelContenidoTurnos;
     private CardLayout cardLayoutContenidoTurnos;
     private PanelCrearReprogramarTurno panelCrearReprogramarTurno;
 
-    private ModeloTablaTurno modeloTabla = new ModeloTablaTurno();
+    private ModeloTablaTurno modeloTabla;
     private JTable tablaTurnos;
     private JSpinner spnBuscarPorFecha;
     private JToggleButton btnBuscarPorFecha;
-    private JRadioButton rbFiltrarEstadoPendiente, rbFiltrarEstadoConfirmado, rbFiltrarEstadoCancelado, rbFiltrarBuscarEstadoAtendido, rbFiltrarEstadoAusentado;
+    private JRadioButton rbFiltrarEstadoPendiente, rbFiltrarEstadoCancelado, rbFiltrarBuscarEstadoAtendido, rbFiltrarEstadoAusentado;
     private ButtonGroup grupoBotonesBuscarPorEstado;
     private JButton btnFiltrarEstadoTodos;
-    private JButton btnNuevoTurno, btnConfirmarTurno, btnAtenderTurno, btnReprogramarTurno, btnCancelarTurno;
+    private JButton btnNuevoTurno, btnAtenderTurno, btnReprogramarTurno, btnCancelarTurno, btnAusentarTurno;
     private JToggleButton btnOrdenarPorFechaHora;
     private Date fechaBuscada;
     private Estado estadoBuscado;
@@ -94,7 +95,7 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         this.actualizarTurnosHoy = actualizarTurnosHoy;
         this.actualizarRuta = actualizarRuta;
         iniciarComponentes();
-        iniciarEventos();
+        iniciarEventosComponentes();
     }
 
     private void iniciarComponentes() {
@@ -102,8 +103,8 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         setLayout(new BorderLayout());
 
         JPanel panelInicioTurnos = new JPanel(new BorderLayout());
-
         panelInicioTurnos.setBorder(BorderFactory.createEmptyBorder(20, 15, 20, 15));
+        panelInicioTurnos.setBackground(Color.WHITE);
 
         //Tabla de turnos
         modeloTabla = new ModeloTablaTurno();
@@ -138,31 +139,17 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
 
         lblVerPorEstado.setFont(fuenteFiltros);
         rbFiltrarEstadoPendiente = new JRadioButton("Pendiente");
-        rbFiltrarEstadoConfirmado = new JRadioButton("Confirmado");
         rbFiltrarEstadoCancelado = new JRadioButton("Cancelado");
         rbFiltrarBuscarEstadoAtendido = new JRadioButton("Atendido");
         rbFiltrarEstadoAusentado = new JRadioButton("Ausentado");
         btnFiltrarEstadoTodos = new JButton("Todos");
 
-        JButton btnMasInformacionEstadoAusentado = new JButton();
-        btnMasInformacionEstadoAusentado.setPreferredSize(new Dimension(20, 20));
-        btnMasInformacionEstadoAusentado.setFont(fuenteFiltros);
-        btnMasInformacionEstadoAusentado.setForeground(Color.BLACK);
-        btnMasInformacionEstadoAusentado.setBackground(Color.WHITE);
-        btnMasInformacionEstadoAusentado.setToolTipText("Más información sobre el estado 'Ausentado'");
-        btnMasInformacionEstadoAusentado.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                JOptionPane.showMessageDialog(null, "Todos los turnos que se encuentren en el estado de Confirmado al pasar su hora de inicio se cambiarán a Ausentado.",
-                        "Más información sobre el estado 'Ausentado'", JOptionPane.INFORMATION_MESSAGE);
-            }
-        });
-
-        JRadioButton[] botonesRadio = {rbFiltrarEstadoPendiente, rbFiltrarEstadoConfirmado, rbFiltrarEstadoCancelado, rbFiltrarBuscarEstadoAtendido, rbFiltrarEstadoAusentado};
+        JRadioButton[] botonesRadio = {rbFiltrarEstadoPendiente, rbFiltrarEstadoCancelado, rbFiltrarBuscarEstadoAtendido, rbFiltrarEstadoAusentado};
         grupoBotonesBuscarPorEstado = new ButtonGroup();
         for (JRadioButton boton : botonesRadio) {
             boton.setFont(fuenteFiltros);
             boton.setFocusPainted(false);
+            boton.setBackground(Color.WHITE);
             grupoBotonesBuscarPorEstado.add(boton);
         }
 
@@ -185,6 +172,7 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         panelBusquedaPorFecha.add(spnBuscarPorFecha);
         panelBusquedaPorFecha.add(Box.createHorizontalStrut(30));
         panelBusquedaPorFecha.add(btnBuscarPorFecha);
+        panelBusquedaPorFecha.setBackground(Color.WHITE);
 
         JPanel panelVerPorEstado = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         panelVerPorEstado.add(Box.createHorizontalStrut(20));
@@ -192,20 +180,18 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         panelVerPorEstado.add(Box.createHorizontalStrut(30));
         panelVerPorEstado.add(rbFiltrarEstadoPendiente);
         panelVerPorEstado.add(Box.createHorizontalStrut(30));
-        panelVerPorEstado.add(rbFiltrarEstadoConfirmado);
-        panelVerPorEstado.add(Box.createHorizontalStrut(30));
         panelVerPorEstado.add(rbFiltrarEstadoCancelado);
         panelVerPorEstado.add(Box.createHorizontalStrut(30));
         panelVerPorEstado.add(rbFiltrarBuscarEstadoAtendido);
         panelVerPorEstado.add(Box.createHorizontalStrut(30));
         panelVerPorEstado.add(rbFiltrarEstadoAusentado);
-        panelVerPorEstado.add(Box.createHorizontalStrut(5));
-        panelVerPorEstado.add(btnMasInformacionEstadoAusentado);
         panelVerPorEstado.add(Box.createHorizontalStrut(30));
         panelVerPorEstado.add(btnFiltrarEstadoTodos);
+        panelVerPorEstado.setBackground(Color.WHITE);
 
         JPanel panelBotonOrdenarPorFecha = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panelBotonOrdenarPorFecha.add(btnOrdenarPorFechaHora);
+        panelBotonOrdenarPorFecha.setBackground(Color.WHITE);
 
         JPanel panelFiltrosBusqueda = new JPanel();
         panelFiltrosBusqueda.setLayout(new BoxLayout(panelFiltrosBusqueda, BoxLayout.Y_AXIS));
@@ -216,22 +202,24 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         panelFiltrosBusqueda.add(panelBotonOrdenarPorFecha);
         panelFiltrosBusqueda.add(Box.createVerticalStrut(10));
 
+        panelFiltrosBusqueda.setBackground(Color.WHITE);
+
         panelInicioTurnos.add(panelFiltrosBusqueda, BorderLayout.NORTH);
 
         //Panel botones
         btnNuevoTurno = new JButton("Nuevo");
-        btnConfirmarTurno = new JButton("Confirmar");
         btnAtenderTurno = new JButton("Atender");
         btnReprogramarTurno = new JButton("Reprogramar");
         btnCancelarTurno = new JButton("Cancelar");
+        btnAusentarTurno = new JButton("Ausentado");
 
         btnNuevoTurno.setEnabled(true);
-        btnConfirmarTurno.setEnabled(false);
         btnAtenderTurno.setEnabled(false);
         btnReprogramarTurno.setEnabled(false);
         btnCancelarTurno.setEnabled(false);
+        btnAusentarTurno.setEnabled(false);
 
-        JButton[] botonesTabla = {btnNuevoTurno, btnConfirmarTurno, btnAtenderTurno, btnReprogramarTurno, btnCancelarTurno};
+        JButton[] botonesTabla = {btnNuevoTurno, btnAtenderTurno, btnReprogramarTurno, btnCancelarTurno, btnAusentarTurno};
         JPanel panelBotonesTabla = FabricaElementos.crearPanelBotonesParaTabla(botonesTabla);
 
         panelInicioTurnos.add(panelBotonesTabla, BorderLayout.EAST);
@@ -251,7 +239,7 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         add(panelContenidoTurnos, BorderLayout.CENTER);
     }
 
-    private void iniciarEventos() {
+    private void iniciarEventosComponentes() {
 
         btnNuevoTurno.addActionListener(new ActionListener() {
             @Override
@@ -261,15 +249,6 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         });
 
         agregarEfectoResaltado(btnNuevoTurno);
-
-        btnConfirmarTurno.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                botonConfirmarTurno();
-            }
-        });
-
-        agregarEfectoResaltado(btnConfirmarTurno);
 
         btnAtenderTurno.addActionListener(new ActionListener() {
             @Override
@@ -298,6 +277,15 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
 
         agregarEfectoResaltado(btnCancelarTurno);
 
+        btnAusentarTurno.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                botonAusentarTurno();
+            }
+        });
+
+        agregarEfectoResaltado(btnAusentarTurno);
+
         spnBuscarPorFecha.addChangeListener(new ChangeListener() {
             @Override
             public void stateChanged(ChangeEvent e) {
@@ -324,13 +312,6 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
             @Override
             public void actionPerformed(ActionEvent e) {
                 botonesBuscarPorEstado(Turno.Estado.PENDIENTE);
-            }
-        });
-
-        rbFiltrarEstadoConfirmado.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                botonesBuscarPorEstado(Turno.Estado.CONFIRMADO);
             }
         });
 
@@ -386,6 +367,18 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
                 }
             }
         });
+
+        panelContenidoTurnos.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                deseleccionarTabla();
+            }
+
+        });
+    }
+
+    private void deseleccionarTabla() {
+        tablaTurnos.clearSelection();
     }
 
     private void agregarEfectoResaltado(AbstractButton boton) {
@@ -406,58 +399,56 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         });
     }
 
+    private void actualizarBotonesTabla() {
+        if (tablaTurnos.getSelectedRow() == -1) {
+            btnNuevoTurno.setEnabled(true);
+            btnAtenderTurno.setEnabled(false);
+            btnReprogramarTurno.setEnabled(false);
+            btnCancelarTurno.setEnabled(false);
+            btnAusentarTurno.setEnabled(false);
+
+        } else {
+            btnNuevoTurno.setEnabled(false);
+
+            Turno turnoSeleccionado = modeloTabla.traerTurno(tablaTurnos.getSelectedRow());
+
+            btnAtenderTurno.setEnabled(turnoSeleccionado.puedeAtender());
+            /**
+             * Aunque según la lógica de negocio solo se pueden reprogramar
+             * turnos cancelados, en la interfaz solo se permiten seleccionar
+             * los pendientes. El proceso de cancelar el turno se realiza
+             * internamente.
+             */
+            btnReprogramarTurno.setEnabled((turnoSeleccionado.getEstado() == Turno.Estado.PENDIENTE && turnoSeleccionado.getFechaHoraFinal().after(new Date())));
+            btnCancelarTurno.setEnabled(turnoSeleccionado.puedeCancelar());
+            btnAusentarTurno.setEnabled(turnoSeleccionado.puedeAusentar());
+        }
+    }
+
     private void botonNuevoTurno() {
         panelCrearReprogramarTurno.modoCrear(logicaTipoConsulta.traerTodos());
         cardLayoutContenidoTurnos.show(panelContenidoTurnos, "crearReprogramar");
         registrarRuta(ESTA_RUTA + " / " + btnNuevoTurno.getText());
     }
 
-    private void botonConfirmarTurno() {
-        try {
-            logicaTurno.confirmarTurno(modeloTabla.traerTurno(tablaTurnos.getSelectedRow()).getIdTurno());
-        } catch (EstadoInvalido e) {
-            JOptionPane.showMessageDialog(null, e.getMensaje(),
-                    "Cambio de estado inválido", JOptionPane.ERROR_MESSAGE);
-            return;
-        } catch (ProblemaPersistencia e) {
-            JOptionPane.showMessageDialog(null, "Ha ocurrido un problema con la base de datos. Comuníquese con su desarrolador y/o intente más tarde.",
-                    "Problema con Base de datos", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        JOptionPane.showMessageDialog(null, "Estado cambiado a Confirmado exitosamente.", "Turno Confirmado", JOptionPane.INFORMATION_MESSAGE);
-
-        actualizarTurnosHoy.actualizarTurnosHoy();
-
-        if (btnBuscarPorFecha.isSelected()) {
-            botonBuscarPorFecha();
-            return;
-        }
-
-        if (estadoBuscado != null) {
-            botonesBuscarPorEstado(estadoBuscado);
-            return;
-        }
-
-        modeloTabla.actualizar(logicaTurno.traerTodos());
-    }
-
     private void botonAtenderTurno() {
         try {
-            logicaTurno.atenderTurno(modeloTabla.traerTurno(tablaTurnos.getSelectedRow()).getIdTurno());
-        } catch (EstadoInvalido e) {
+            logicaTurno.atenderTurno(modeloTabla.traerTurno(tablaTurnos.getSelectedRow()));
+        } catch (CampoInvalido e) {
             JOptionPane.showMessageDialog(null, e.getMensaje(),
                     "Cambio de estado inválido", JOptionPane.ERROR_MESSAGE);
             return;
         } catch (ProblemaPersistencia e) {
             JOptionPane.showMessageDialog(null, "Ha ocurrido un problema con la base de datos. Comuníquese con su desarrolador y/o intente más tarde.",
-                    "Problema con Base de datos", JOptionPane.ERROR_MESSAGE);
+                    "Problema con base de datos", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         JOptionPane.showMessageDialog(null, "Estado cambiado a Atendido exitosamente.", "Turno Atendido", JOptionPane.INFORMATION_MESSAGE);
 
-        actualizarTurnosHoy.actualizarTurnosHoy();
+        modeloTabla.actualizar(logicaTurno.traerTodos());
+
+        actualizarTurnosHoy.actualizar();
 
         if (btnBuscarPorFecha.isSelected()) {
             botonBuscarPorFecha();
@@ -469,32 +460,36 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
             return;
         }
 
-        modeloTabla.actualizar(logicaTurno.traerTodos());
+        if (ordenarPorFecha) {
+            botonOrdenarPorFecha();
+        }
     }
 
     private void botonReprogramarTurno() {
         Turno turnoSeleccionado = modeloTabla.traerTurno(tablaTurnos.getSelectedRow());
-        panelCrearReprogramarTurno.modoReprogramar(logicaTipoConsulta.traerTodos(), turnoSeleccionado);
+        panelCrearReprogramarTurno.modoReprogramar(turnoSeleccionado);
         cardLayoutContenidoTurnos.show(panelContenidoTurnos, "crearReprogramar");
         registrarRuta(ESTA_RUTA + " / " + btnReprogramarTurno.getText());
     }
 
     private void botonCancelarTurno() {
         try {
-            logicaTurno.cancelarTurno(modeloTabla.traerTurno(tablaTurnos.getSelectedRow()).getIdTurno());
-        } catch (EstadoInvalido e) {
+            logicaTurno.cancelarTurno(modeloTabla.traerTurno(tablaTurnos.getSelectedRow()));
+        } catch (CampoInvalido e) {
             JOptionPane.showMessageDialog(null, e.getMensaje(),
                     "Cambio de estado inválido", JOptionPane.ERROR_MESSAGE);
             return;
         } catch (ProblemaPersistencia e) {
             JOptionPane.showMessageDialog(null, "Ha ocurrido un problema con la base de datos. Comuníquese con su desarrolador y/o intente más tarde.",
-                    "Problema con Base de datos", JOptionPane.ERROR_MESSAGE);
+                    "Problema con base de datos", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         JOptionPane.showMessageDialog(null, "Estado cambiado a Cancelado exitosamente.", "Turno Cancelado", JOptionPane.INFORMATION_MESSAGE);
 
-        actualizarTurnosHoy.actualizarTurnosHoy();
+        modeloTabla.actualizar(logicaTurno.traerTodos());
+
+        actualizarTurnosHoy.actualizar();
 
         if (btnBuscarPorFecha.isSelected()) {
             botonBuscarPorFecha();
@@ -506,14 +501,50 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
             return;
         }
 
+        if (ordenarPorFecha) {
+            botonOrdenarPorFecha();
+        }
+    }
+
+    private void botonAusentarTurno() {
+        try {
+            logicaTurno.ausentarTurno(modeloTabla.traerTurno(tablaTurnos.getSelectedRow()));
+        } catch (CampoInvalido e) {
+            JOptionPane.showMessageDialog(null, e.getMensaje(),
+                    "Cambio de estado inválido", JOptionPane.ERROR_MESSAGE);
+            return;
+        } catch (ProblemaPersistencia e) {
+            JOptionPane.showMessageDialog(null, "Ha ocurrido un problema con la base de datos. Comuníquese con su desarrolador y/o intente más tarde.",
+                    "Problema con base de datos", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        JOptionPane.showMessageDialog(null, "Estado cambiado a Ausentado exitosamente.", "Ausentado", JOptionPane.INFORMATION_MESSAGE);
+
         modeloTabla.actualizar(logicaTurno.traerTodos());
+
+        actualizarTurnosHoy.actualizar();
+
+        if (btnBuscarPorFecha.isSelected()) {
+            botonBuscarPorFecha();
+            return;
+        }
+
+        if (estadoBuscado != null) {
+            botonesBuscarPorEstado(estadoBuscado);
+            return;
+        }
+
+        if (ordenarPorFecha) {
+            botonOrdenarPorFecha();
+        }
     }
 
     private void botonBuscarPorFecha() {
         fechaBuscada = (Date) spnBuscarPorFecha.getValue();
 
         if (estadoBuscado != null && ordenarPorFecha) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.filtrarPorFechaEstado(fechaBuscada, estadoBuscado)));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.filtrarPorFechaEstado(fechaBuscada, estadoBuscado)));
             return;
         }
 
@@ -523,7 +554,7 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         }
 
         if (estadoBuscado == null && ordenarPorFecha) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.buscarPorFecha(fechaBuscada)));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.buscarPorFecha(fechaBuscada)));
             return;
         }
 
@@ -534,7 +565,7 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         this.estadoBuscado = estadoBuscado;
 
         if (fechaBuscada != null && ordenarPorFecha) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.filtrarPorFechaEstado(fechaBuscada, estadoBuscado)));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.filtrarPorFechaEstado(fechaBuscada, estadoBuscado)));
             return;
         }
 
@@ -544,7 +575,7 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         }
 
         if (fechaBuscada == null && ordenarPorFecha) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.filtrarPorEstado(estadoBuscado)));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.filtrarPorEstado(estadoBuscado)));
             return;
         }
 
@@ -555,7 +586,7 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         fechaBuscada = null;
 
         if (estadoBuscado != null && ordenarPorFecha) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.filtrarPorEstado(estadoBuscado)));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.filtrarPorEstado(estadoBuscado)));
             return;
         }
 
@@ -565,7 +596,7 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         }
 
         if (estadoBuscado == null && ordenarPorFecha) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.traerTodos()));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.traerTodos()));
             return;
         }
 
@@ -576,7 +607,7 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         estadoBuscado = null;
 
         if (fechaBuscada != null && ordenarPorFecha) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.buscarPorFecha(fechaBuscada)));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.buscarPorFecha(fechaBuscada)));
             return;
         }
 
@@ -586,7 +617,7 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         }
 
         if (fechaBuscada == null && ordenarPorFecha) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.traerTodos()));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.traerTodos()));
             return;
         }
 
@@ -597,21 +628,21 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         ordenarPorFecha = true;
 
         if (fechaBuscada != null && estadoBuscado != null) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.filtrarPorFechaEstado(fechaBuscada, estadoBuscado)));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.filtrarPorFechaEstado(fechaBuscada, estadoBuscado)));
             return;
         }
 
         if (fechaBuscada != null && estadoBuscado == null) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.buscarPorFecha(fechaBuscada)));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.buscarPorFecha(fechaBuscada)));
             return;
         }
 
         if (fechaBuscada == null && estadoBuscado != null) {
-            modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.filtrarPorEstado(estadoBuscado)));
+            modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.filtrarPorEstado(estadoBuscado)));
             return;
         }
 
-        modeloTabla.actualizar(logicaTurno.ordenarPorFechaCercanaLejana(logicaTurno.traerTodos()));
+        modeloTabla.actualizar(logicaTurno.ordenarPorFechaAscendente(logicaTurno.traerTodos()));
     }
 
     private void resetearOrdenarPorFecha() {
@@ -635,76 +666,65 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         modeloTabla.actualizar(logicaTurno.traerTodos());
     }
 
-    private void actualizarBotonesTabla() {
-        if (tablaTurnos.getSelectedRow() == -1) {
-            btnNuevoTurno.setEnabled(true);
-            btnConfirmarTurno.setEnabled(false);
-            btnAtenderTurno.setEnabled(false);
-            btnReprogramarTurno.setEnabled(false);
-            btnCancelarTurno.setEnabled(false);
-
-        } else {
-            btnNuevoTurno.setEnabled(false);
-
-            Turno turnoSeleccionado = modeloTabla.traerTurno(tablaTurnos.getSelectedRow());
-
-            btnConfirmarTurno.setEnabled(turnoSeleccionado.puedeConfirmar());
-            btnAtenderTurno.setEnabled(turnoSeleccionado.puedeAtender());
-            btnReprogramarTurno.setEnabled((turnoSeleccionado.puedeReprogramar() && turnoSeleccionado.getHoraInicio().after(new Date())) ? true : false);
-            btnCancelarTurno.setEnabled(turnoSeleccionado.puedeCancelar());
-        }
-    }
-
-    private void registrarRuta(String ruta) {
-        actualizarRuta.actualizarRuta(ruta);
-        setRuta(ruta);
-    }
-
     @Override
-    public Map<Date, Date> eventoTraerHorariosDisponibles(Date fecha, TipoConsulta tipoConsulta, Turno turnoIgnorar) {
+    public Map<Date, Date> traer(Date fecha, TipoConsulta tipoConsulta, Turno turnoIgnorar) {
         return logicaTurno.traerHorariosDisponibles(fecha, tipoConsulta, turnoIgnorar);
     }
 
     @Override
-    public void eventoGuardarTurnoNuevo(Turno turno) {
+    public void guardarNuevoTurno(Date fechaHoraInicial, Date fechaHoraFinal, Paciente paciente, TipoConsulta tipoConsulta) {
         try {
-            logicaTurno.crearNuevo(turno);
+            logicaTurno.crearNuevo(fechaHoraInicial, fechaHoraFinal, paciente, tipoConsulta);
+
+        } catch (HorarioInvalido e) {
+            JOptionPane.showMessageDialog(null, e.getMensaje(),
+                    "Turno a crear inválido", JOptionPane.ERROR_MESSAGE);
+            return;
+
+        } catch (TipoConsultaInvalido e) {
+            JOptionPane.showMessageDialog(null, e.getMensaje(),
+                    "Tipo de consulta inválido", JOptionPane.ERROR_MESSAGE);
+            return;
+
         } catch (CampoInvalido e) {
             JOptionPane.showMessageDialog(null, e.getMensaje(),
-                    "Campo Inválido", JOptionPane.ERROR_MESSAGE);
-            return;
-        } catch (ProblemaPersistencia e) {
-            JOptionPane.showMessageDialog(null, "Ha ocurrido un problema con la base de datos. Comuníquese con su desarrolador y/o intente más tarde.",
-                    "Problema con Base de datos", JOptionPane.ERROR_MESSAGE);
+                    "Campo inválido", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        JOptionPane.showMessageDialog(null, "Nuevo turno registrado con éxito.", "Turno registrado", JOptionPane.INFORMATION_MESSAGE);
-        cardLayoutContenidoTurnos.show(panelContenidoTurnos, "inicioTurnos");
+        JOptionPane.showMessageDialog(
+                null, "Nuevo turno registrado con éxito.", "Turno registrado", JOptionPane.INFORMATION_MESSAGE);
+        cardLayoutContenidoTurnos.show(panelContenidoTurnos,
+                "inicioTurnos");
         registrarRuta(ESTA_RUTA);
 
-        actualizarTurnosHoy.actualizarTurnosHoy();
+        modeloTabla.actualizar(logicaTurno.traerTodos());
+
+        actualizarTurnosHoy.actualizar();
 
         if (btnBuscarPorFecha.isSelected()) {
             botonBuscarPorFecha();
             return;
         }
 
-        if (estadoBuscado != null) {
+        if (estadoBuscado
+                != null) {
             botonesBuscarPorEstado(estadoBuscado);
             return;
         }
 
-        modeloTabla.actualizar(logicaTurno.traerTodos());
+        if (ordenarPorFecha) {
+            botonOrdenarPorFecha();
+        }
     }
 
     @Override
-    public void eventoReprogramarTurno(Turno turnoReprogramado, Turno nuevoTurno) {
+    public void reprogramarTurno(Turno turnoReprogramar, Date fechaHoraInicial, Date fechaHoraFinal) {
         try {
-            logicaTurno.reprogramarTurno(turnoReprogramado, nuevoTurno);
-        } catch (TurnoReprogramarPasado e) {
+            logicaTurno.reprogramarTurno(turnoReprogramar, fechaHoraInicial, fechaHoraFinal);
+        } catch (HorarioInvalido e) {
             JOptionPane.showMessageDialog(null, e.getMensaje(),
-                    "Turno a reprogramar no válido", JOptionPane.ERROR_MESSAGE);
+                    "Turno a reprogramar inválido", JOptionPane.ERROR_MESSAGE);
             return;
         } catch (CampoInvalido e) {
             JOptionPane.showMessageDialog(null, e.getMensaje(),
@@ -720,7 +740,9 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
         cardLayoutContenidoTurnos.show(panelContenidoTurnos, "inicioTurnos");
         registrarRuta(ESTA_RUTA);
 
-        actualizarTurnosHoy.actualizarTurnosHoy();
+        modeloTabla.actualizar(logicaTurno.traerTodos());
+
+        actualizarTurnosHoy.actualizar();
 
         if (btnBuscarPorFecha.isSelected()) {
             botonBuscarPorFecha();
@@ -732,28 +754,20 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
             return;
         }
 
-        modeloTabla.actualizar(logicaTurno.traerTodos());
+        if (ordenarPorFecha) {
+            botonOrdenarPorFecha();
+        }
     }
 
     @Override
-    public void eventoCancelar() {
+    public void cancelar() {
         cardLayoutContenidoTurnos.show(panelContenidoTurnos, "inicioTurnos");
         registrarRuta(ESTA_RUTA);
     }
 
-    @Override
-    public void eventoBuscarPaciente() {
-
-        //List<Paciente> listaPacientes = logicaPaciente.traerTodos();
-        //JDialog necesita el JFrame principal. 
-        //A diferencia de getParent(), que sube solo un nivel, este método recorre toda la estructura jerárquica de la GUI hasta dar con el contenedor de nivel superior*/
-        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
-
-        DialogBuscarPacienteTurno dialogBuscarPaciente = new DialogBuscarPacienteTurno(frame, logicaPaciente);
-        dialogBuscarPaciente.setLocationRelativeTo(null);
-        dialogBuscarPaciente.setVisible(true);
-
-        panelCrearReprogramarTurno.setPacienteTurno(dialogBuscarPaciente.getPacienteSeleccionado());
+    private void registrarRuta(String ruta) {
+        actualizarRuta.actualizar(ruta);
+        setRuta(ruta);
     }
 
     public String getRuta() {
@@ -762,13 +776,29 @@ public class PanelTurnos extends JPanel implements GuardarCancelarTurno, BuscarP
 
     public void setRuta(String ruta) {
         this.ruta = ruta;
+
+    }
+
+    @Override
+    public void buscar() {
+        //JDialog necesita el JFrame principal. 
+        //A diferencia de getParent(), que sube solo un nivel, este método recorre toda la estructura jerárquica de la GUI hasta dar con el contenedor de nivel superior*/
+        JFrame frame = (JFrame) SwingUtilities.getWindowAncestor(this);
+
+        DialogBuscarPacienteTurno dialogBuscarPaciente = new DialogBuscarPacienteTurno(frame, logicaPaciente);
+        dialogBuscarPaciente.setLocationRelativeTo(null);
+        dialogBuscarPaciente.setVisible(true);
+
+        panelCrearReprogramarTurno.setPaciente(dialogBuscarPaciente.getPacienteSeleccionado());
     }
 }
 
 class ModeloTablaTurno extends AbstractTableModel {
 
     private List<Turno> listaTurnos = new ArrayList();
-    private String[] nombreColumnas = {"ID", "Fecha", "Hora Inicial", "Hora Final", "Tipo de Consulta", "ID Paciente", "Nombre y Apellido", "Estado", "Reprogramado"};
+    private final String[] nombreColumnas = {"ID", "Fecha", "Hora Inicial", "Hora Final", "Tipo de Consulta", "ID Paciente", "Nombre y Apellido", "Estado", "Reprogramado"};
+    private static final SimpleDateFormat FORMATO_FECHA = new SimpleDateFormat("EEEE, MMMM dd, yyyy");
+    private static final SimpleDateFormat FORMATO_HORAS = new SimpleDateFormat("HH:mm");
 
     public void actualizar(List<Turno> listaTurnos) {
         this.listaTurnos = listaTurnos;
@@ -797,50 +827,58 @@ class ModeloTablaTurno extends AbstractTableModel {
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
         Turno turno = listaTurnos.get(rowIndex);
+        Paciente paciente = turno.getPaciente();
 
         switch (columnIndex) {
-            case 0:
+            case 0 -> {
                 return turno.getIdTurno();
+            }
 
-            case 1:
-                SimpleDateFormat formatoFecha = new SimpleDateFormat("EEEE, MMMM dd, yyyy");
-                String fechaHoyFormato = formatoFecha.format(turno.getHoraInicio());
+            case 1 -> {
+                String fechaHoyFormato = FORMATO_FECHA.format(turno.getFechaHoraInicial());
 
                 String[] palabras = fechaHoyFormato.split(" ");
 
                 String textoFechaMayusculas = "";
-                for (int i = 0; i < palabras.length; i++) {
-                    textoFechaMayusculas += palabras[i].toUpperCase().charAt(0) + palabras[i].substring(1, palabras[i].length()) + " ";
+                for (String palabra : palabras) {
+                    textoFechaMayusculas += palabra.toUpperCase().charAt(0) + palabra.substring(1, palabra.length()) + " ";
                 }
 
                 return textoFechaMayusculas;
+            }
 
-            case 2:
-                SimpleDateFormat formatoHoraInicial = new SimpleDateFormat("HH:mm");
-                return formatoHoraInicial.format(turno.getHoraInicio()) + " hs";
+            case 2 -> {
+                return FORMATO_HORAS.format(turno.getFechaHoraInicial()) + " hs";
+            }
 
-            case 3:
-                SimpleDateFormat formatoHoraFinal = new SimpleDateFormat("HH:mm");
-                return formatoHoraFinal.format(turno.getHoraFinal()) + " hs";
+            case 3 -> {
+                return FORMATO_HORAS.format(turno.getFechaHoraFinal()) + " hs";
+            }
 
-            case 4:
+            case 4 -> {
                 return turno.getTipoConsulta().getNombreConsulta();
+            }
 
-            case 5:
-                return turno.getPaciente().getIdPaciente();
+            case 5 -> {
+                return (paciente == null) ? "[ELIMINADO]" : paciente.getIdPaciente();
+            }
 
-            case 6:
-                return turno.getPaciente().getNombre() + " " + turno.getPaciente().getApellido();
+            case 6 -> {
+                return (paciente == null) ? "[ELIMINADO]" : paciente.getNombre() + " " + paciente.getApellido();
+            }
 
-            case 7:
+            case 7 -> {
                 return turno.getEstado();
+            }
 
-            case 8:
+            case 8 -> {
                 String reprogramado = (turno.isReprogramado()) ? "Sí" : "No";
                 return reprogramado;
+            }
 
-            default:
+            default -> {
                 return null;
+            }
         }
     }
 
